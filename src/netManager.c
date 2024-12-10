@@ -1,17 +1,85 @@
 #include "netManager.h"
 
+void handleCTS(uint32_t len, const u_char *bytes)
+{
+    uint16_t duration = bytes[2] + bytes[3] * 16;
+    const u_char *receiver = bytes+4;
+    printf("----------CTS----------\n");
+    printf("Duration/ID: %d\n", duration);
+    printf("Receiver: ");
+    for(int i = 0; i < 5; ++i)
+    {
+        printf("%02x:", receiver[i]);
+    }
+    printf("%02x\n", receiver[5]);
+}
+void handleRTS(uint32_t len, const u_char *bytes)
+{
+    uint16_t duration = bytes[2] + bytes[3] * 16;
+    const u_char *receiver = bytes+4;
+    const u_char *transmitter = bytes+10;
+    printf("----------RTS----------\n");
+    printf("Duration/ID: %d\n", duration);
+    printf("Transmitter: ");
+    for (int i = 0; i < 5; ++i) 
+    {
+        printf("%02x:", transmitter[i]);
+    }
+    printf("%02x\n", transmitter[5]);
+    printf("Receiver: ");
+    for (int i = 0; i < 5; ++i) 
+    {
+        printf("%02x:", receiver[i]);
+    }
+    printf("%02x\n", receiver[5]);
+}
+void handleACK(uint32_t len, const u_char *bytes)
+{
+    uint16_t duration = bytes[2] + bytes[3] * 16;
+    const u_char *receiver = bytes + 4;
+    const u_char *transmitter = bytes + 10;
+    printf("----------ACK----------\n");
+    printf("Duration/ID: %d\n", duration);
+    printf("Transmitter: ");
+    for (int i = 0; i < 5; ++i) 
+    {
+        printf("%02x:", transmitter[i]);
+    }
+    printf("%02x\n", transmitter[5]);
+    printf("Receiver: ");
+    for (int i = 0; i < 5; ++i) 
+    {
+        printf("%02x:", receiver[i]);
+    }
+    printf("%02x\n", receiver[5]);
+}
 void packetHandler(u_char *user, const struct pcap_pkthdr *h, const u_char *bytes) 
 {
-    printf("--------------------\n");
-    printf("Timestamp: %ld\n", h->ts.tv_sec);
-    printf("Caplen: %d\n", h->caplen);
-    printf("Len: %d\n", h->len);
-    printf("User: %s\n", user);
-    for (int i = 0;i < h->len; i++) 
+    //printf("--------------------\n");
+    //printf("Timestamp: %ld\n", h->ts.tv_sec);
+    //printf("Caplen: %d\n", h->caplen);
+    //printf("Len: %d\n", h->len);
+    //printf("User: %s\n", user);
+    uint16_t radiotap_len = bytes[2] + bytes[3]*16;
+    //printf("Radiotap_len = %d\n", radiotap_len);
+    
+    uint8_t frameType = bytes[radiotap_len];
+    uint8_t flags = bytes[radiotap_len+1];
+    //printf("%02x\n", frameType);
+    if (frameType == CTS)
     {
-        printf("%02x ", bytes[i]);
+        handleCTS(h->len - radiotap_len, bytes+radiotap_len);
     }
-    printf("\n");
+    else if(frameType == RTS)
+    {
+        handleRTS(h->len - radiotap_len, bytes+radiotap_len);
+    }
+    else if(frameType == BEACON)
+        printf("BEACON!\n");
+    else if(frameType == ACK)
+    {
+        handleACK(h->len - radiotap_len, bytes+radiotap_len);
+    }
 }
 
 int initPcap()
