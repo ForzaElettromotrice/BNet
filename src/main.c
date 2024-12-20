@@ -35,7 +35,23 @@ int main()
 
 	int out = mainLoop(handle);
 
-	clean(handle);
-
+//    struct timespec duration;
+  //  duration.tv_sec = 0;
+    //duration.tv_nsec = 10;
+    //struct timespec start;
+    //struct timespec end;
+    //clock_gettime(CLOCK_MONOTONIC, &start);
+    //for(int i = 0; i < 20000; ++i)
+   // {
+    //    clock_gettime(CLOCK_MONOTONIC, &end);
+     //   if(end.tv_sec - start.tv_sec == 0 && end.tv_nsec - start.tv_nsec > 10000)
+      //  {
+//            printf("%d\n", i);
+    //        break;
+  //      }
+        //printf("Time: %ld ns\n", end.tv_nsec - start.tv_nsec);
+        //clock_gettime(CLOCK_MONOTONIC, &start);
+    //}
+    clean(handle);
 	return out;
 }
