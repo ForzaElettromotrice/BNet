@@ -1,6 +1,5 @@
 #include "netManager.h"
 
-#include <string.h>
 
 void mySleep(int usec)
 {
@@ -182,7 +181,7 @@ int findSIFS(pcap_t *handle)
 }
 int findLargerSIFS(pcap_t *handle)
 {
-    int max = 0;
+    int mean = 0;
     for (int i = 0; i < 10; ++i)
     {
         int val = findSIFS(handle);
@@ -192,10 +191,11 @@ int findLargerSIFS(pcap_t *handle)
             continue;
         }
         printf("%d\n", val);
-        if (val > max)
-            max = val;
+        mean += val;
     }
-    return max;
+    mean /= 10;
+
+    return mean;
 }
 
 int initPcap()
