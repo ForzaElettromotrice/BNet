@@ -1,13 +1,11 @@
 #pragma once
 
-#include <stdlib.h>
-#include <pcap.h>
-#include <sys/time.h>
 #include <time.h>
+#include <stdlib.h>
 #include <stdbool.h>
+#include <pcap.h>
+
 #include "logger.h"
-
-
 
 #define RTS 0xb4
 #define CTS 0xc4
@@ -24,10 +22,12 @@ typedef struct Header80211 {
     char addr3[6];
 }Header80211_t;
 
+int findSIFS(pcap_t *handle);
+
 
 int initPcap();
 int createHandle(pcap_t **handle);
-int setHandleOptions(pcap_t *handle); 
+int setHandleOptions(pcap_t *handle);
 int activateHandle(pcap_t *handle);
 int loop(pcap_t *handle);
 

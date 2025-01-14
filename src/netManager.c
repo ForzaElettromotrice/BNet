@@ -1,5 +1,7 @@
 #include "netManager.h"
 
+#include <string.h>
+
 void mySleep(int usec)
 {
     struct timespec start;
@@ -132,11 +134,64 @@ uint16_t packetHandler(const struct pcap_pkthdr *h, const u_char *bytes)
     return 0;
 }
 
-int initPcap()
-{	
-  char errbuf[PCAP_ERRBUF_SIZE];
+bool isRTS(const u_char *bytes)
+{
+    const uint16_t radiotap_len = bytes[2] + bytes[3]*16;
+    const uint8_t frameType = bytes[radiotap_len];
+    return frameType == RTS;
+}
+bool isCTS(const u_char *bytes)
+{
+    const uint16_t radiotap_len = bytes[2] + bytes[3]*16;
+    const uint8_t frameType = bytes[radiotap_len];
+    return frameType == CTS;
+}
 
-	if(pcap_init(PCAP_CHAR_ENC_LOCAL, errbuf))
+int findSIFS(pcap_t *handle)
+{
+    struct pcap_pkthdr *header;
+    const u_char *packet;
+
+    char errbuf[PCAP_ERRBUF_SIZE];
+    // if(pcap_setnonblock(handle, 1, errbuf))
+    // {
+    //     E_Print("Setnonblock: %s\n", errbuf);
+    //     return EXIT_FAILURE;
+    // }
+    bool rts = false;
+    struct timeval start;
+    struct timeval end;
+    for (int i = 0; i < 20; ++i)
+    {
+        int result = pcap_next_ex(handle, &header, &packet);
+        if (!rts)
+        {
+            rts = isRTS(packet);
+            memcpy(&start, &header->ts, sizeof(struct timeval));
+        }
+        else if (isCTS(packet))
+        {
+            memcpy(&end, &header->ts, sizeof(struct timeval));
+            break;
+        }
+        else
+            rts = false;
+    }
+
+    long s = start.tv_sec * 1000000L + start.tv_usec;
+    long e = end.tv_sec * 1000000L + end.tv_usec;
+
+    printf("DELTA: %ld\n", e-s);
+
+
+    return EXIT_SUCCESS;
+}
+
+
+int initPcap()
+{
+    char errbuf[PCAP_ERRBUF_SIZE];
+    if(pcap_init(PCAP_CHAR_ENC_LOCAL, errbuf))
 	{
 		E_Print("Pcap init failed: %s\n", errbuf);
 		return EXIT_FAILURE;
