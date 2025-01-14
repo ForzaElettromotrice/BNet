@@ -186,7 +186,7 @@ int findLargerSIFS(pcap_t *handle)
     for (int i = 0; i < 10; ++i)
     {
         int val = findSIFS(handle);
-        if (val == -1 || val == 0)
+        if (val <= 0 || val >= 500)
         {
             i--;
             continue;
