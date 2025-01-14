@@ -191,6 +191,7 @@ int findLargerSIFS(pcap_t *handle)
             i--;
             continue;
         }
+        printf("%d\n", val);
         if (val > max)
             max = val;
     }
