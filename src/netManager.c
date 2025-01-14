@@ -152,41 +152,50 @@ int findSIFS(pcap_t *handle)
     struct pcap_pkthdr *header;
     const u_char *packet;
 
-    char errbuf[PCAP_ERRBUF_SIZE];
-    // if(pcap_setnonblock(handle, 1, errbuf))
-    // {
-    //     E_Print("Setnonblock: %s\n", errbuf);
-    //     return EXIT_FAILURE;
-    // }
     bool rts = false;
-    struct timeval start;
-    struct timeval end;
-    for (int i = 0; i < 20; ++i)
+    struct timeval start = {};
+    struct timeval end = {};
+    for (int i = 0; i < 200; ++i)
     {
         int result = pcap_next_ex(handle, &header, &packet);
+        if (result != 1)
+            return -1;
         if (!rts)
         {
             rts = isRTS(packet);
-            memcpy(&start, &header->ts, sizeof(struct timeval));
+            if (rts)
+                memcpy(&start, &header->ts, sizeof(struct timeval));
+            continue;
         }
-        else if (isCTS(packet))
+        if (isCTS(packet))
         {
             memcpy(&end, &header->ts, sizeof(struct timeval));
             break;
         }
-        else
-            rts = false;
+        rts = false;
     }
 
     long s = start.tv_sec * 1000000L + start.tv_usec;
     long e = end.tv_sec * 1000000L + end.tv_usec;
 
-    printf("DELTA: %ld\n", e-s);
-
-
-    return EXIT_SUCCESS;
+    return e-s;
 }
-
+int findLargerSIFS(pcap_t *handle)
+{
+    int max = 0;
+    for (int i = 0; i < 10; ++i)
+    {
+        int val = findSIFS(handle);
+        if (val == -1 || val == 0)
+        {
+            i--;
+            continue;
+        }
+        if (val > max)
+            max = val;
+    }
+    return max;
+}
 
 int initPcap()
 {

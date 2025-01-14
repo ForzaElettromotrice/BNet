@@ -23,7 +23,8 @@ int mainLoop(pcap_t *handle)
     if(activateHandle(handle))
         return EXIT_FAILURE;
 
-	findSIFS(handle);
+	int SIFS = findLargerSIFS(handle);
+	printf("SIFS = %d\n", SIFS);
     // loop(handle);
 	return EXIT_SUCCESS;
 }
