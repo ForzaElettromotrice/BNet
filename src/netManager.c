@@ -201,7 +201,7 @@ int findSIFS(pcap_t *handle)
 int findLargerSIFS(pcap_t *handle)
 {
     int mean = 0;
-    for (int i = 0; i < DIAGNOSTIC_ATTEMPTS; ++i)
+    for (int i = 0; i < DIAGNOSTIC_LENGTH; ++i)
     {
         int val = findSIFS(handle);
         if (val <= 0 || val >= 500)
@@ -212,7 +212,7 @@ int findLargerSIFS(pcap_t *handle)
         printf("%d\n", val);
         mean += val;
     }
-    mean /= DIAGNOSTIC_ATTEMPTS;
+    mean /= DIAGNOSTIC_LENGTH;
 
     return mean;
 }
@@ -265,17 +265,17 @@ int activateHandle(pcap_t *handle)
     int result = pcap_activate(handle);
     if(result > 0)
     {
-        printf("Handle activated with Warning %d\n", result);
+        D_Print("Handle activated with Warning %d\n", result);
     }
     else if (result < 0) 
     {
-        printf("Can't cativate handle! %d\n", result);
+        E_Print("Can't cativate handle! %d\n", result);
         pcap_perror(handle, "activate");
         return EXIT_FAILURE;
     }
 
     int datalink = pcap_datalink(handle);
-    printf("Datalink: %s\n", pcap_datalink_val_to_name(datalink));
+    D_Print("The datalink for this handle is: %s\n", pcap_datalink_val_to_name(datalink));
 
     return EXIT_SUCCESS;
 }

@@ -14,3 +14,4 @@
 
 
 void E_Print(const char *msg, ...);
+void D_Print(const char *msg, ...);

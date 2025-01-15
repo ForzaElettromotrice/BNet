@@ -17,8 +17,6 @@ find_library(PCAP_LIBRARY pcap REQUIRED)
 
 add_executable(BNet src/main.c
 					src/main.h
-					src/netUtility.c
-					src/netUtility.h
 					src/netManager.c
 					src/netManager.h
 					src/logger.c

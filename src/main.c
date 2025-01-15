@@ -23,13 +23,18 @@ int mainLoop(pcap_t *handle)
         return EXIT_FAILURE;
 
 	int SIFS = findLargerSIFS(handle);
-	printf("SIFS = %d\n", SIFS);
+	D_Print("The SIFS will be set to: %d\n", SIFS);
     // loop(handle);
 	return EXIT_SUCCESS;
 }
 
 int main()
 {
+#ifdef Debug
+	D_Print("Launched in Debug Mode!\n");
+#endif
+
+
 	pcap_t *handle;
 	if(init(&handle))
 		return EXIT_FAILURE;
