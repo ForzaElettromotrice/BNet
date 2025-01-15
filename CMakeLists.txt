@@ -23,7 +23,6 @@ add_executable(BNet src/main.c
 					src/netManager.h
 					src/logger.c
 					src/logger.h
-		src/parameters.h
-		src/a.h)
+					src/parameters.h)
 
 target_link_libraries(BNet PRIVATE ${PCAP_LIBRARY})
