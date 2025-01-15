@@ -310,7 +310,6 @@ int loop(pcap_t *handle)
         int result = pcap_next_ex(handle, &header, &packet);
         if (!result)
         {
-            printf("%d\n", result);
             if (canSend)
                 printf("POSSO MANDARE!\n");
             mySleep(difs);
@@ -322,13 +321,18 @@ int loop(pcap_t *handle)
         if (isForMe(packet))
         {
             //TODO: gestiscilo
+            D_Print("Message for me!\n");
             continue;
         }
         if (isCTS(packet))
         {
             uint16_t duration = getDuration(packet);
+            D_Print("CTS!\n");
+            D_Print("Duration = %d\n", duration);
             mySleep(duration);
+            continue;
         }
+        D_Print("Not for me, no CTS");
     }
 
     return EXIT_SUCCESS;
