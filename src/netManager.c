@@ -151,6 +151,12 @@ bool isCTS(const u_char *bytes)
     const uint8_t frameType = bytes[radiotap_len];
     return frameType == CTS;
 }
+bool isACK(const u_char *bytes)
+{
+    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
+    const uint8_t frameType = bytes[radiotap_len];
+    return frameType == ACK;
+}
 uint16_t getDuration(const u_char *bytes)
 {
     const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
@@ -337,6 +343,11 @@ int loop(pcap_t *handle)
             D_Print("CTS!\n");
             D_Print("Duration = %d\n", duration);
             mySleep(duration);
+            continue;
+        }
+        if (isACK(packet))
+        {
+            D_Print("ACK!\n");
             continue;
         }
         D_Print("Something else\n");
