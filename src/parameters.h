@@ -5,3 +5,5 @@
 
 #define DIAGNOSTIC_LENGTH 10
 #define DIAGNOSTIC_TIMEOUT 2
+
+#define SLOT_TIME 9

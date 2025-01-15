@@ -1,5 +1,7 @@
 #include "netManager.h"
 
+uint16_t sifs = 0;
+uint16_t difs = 0;
 
 void mySleep(int usec)
 {
@@ -146,7 +148,7 @@ bool isCTS(const u_char *bytes)
     return frameType == CTS;
 }
 
-int findSIFS(pcap_t *handle)
+uint16_t findSIFS(pcap_t *handle)
 {
     struct pcap_pkthdr *header;
     const u_char *packet;
@@ -198,7 +200,7 @@ int findSIFS(pcap_t *handle)
 
     return e-s;
 }
-int findLargerSIFS(pcap_t *handle)
+uint16_t findLargestSIFS(pcap_t *handle)
 {
     int mean = 0;
     for (int i = 0; i < DIAGNOSTIC_LENGTH; ++i)
@@ -283,23 +285,26 @@ int loop(pcap_t *handle)
     struct pcap_pkthdr *header;
     const u_char *packet;
 
-    char errbuf[PCAP_ERRBUF_SIZE];
-    if(pcap_setnonblock(handle, 1, errbuf))
-    {
-        E_Print("Setnonblock: %s\n", errbuf);
-        return EXIT_FAILURE;
-    }
-    
+    sifs = findLargestSIFS(handle);
+    difs = SLOT_TIME * 2 + sifs;
+
+    D_Print("SIFS = %d\nDIFS = %d\n", sifs, difs);
+
+    //Il non blocking è settato dentro al findSIFS
+
+
+    //TODO: cambiare questo for in modo tale che esce tramite una condizione che viene data dall'esterno o da un pacchetto particolare
+
     bool canSend = false;
     for (int i = 0; i < 200000; ++i) 
     {
         int result = pcap_next_ex(handle, &header, &packet);
         if(!result)
         {
-            /*printf("%d\n", result);*/
-            /*if(canSend)*/
-                /*printf("POSSO MANDARE!\n");*/
-            mySleep(100);
+            printf("%d\n", result);
+            if(canSend)
+                printf("POSSO MANDARE!\n");
+            mySleep(difs);
             canSend = true;
             continue;
         }

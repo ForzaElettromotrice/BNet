@@ -22,9 +22,7 @@ int mainLoop(pcap_t *handle)
     if(activateHandle(handle))
         return EXIT_FAILURE;
 
-	int SIFS = findLargerSIFS(handle);
-	D_Print("The SIFS will be set to: %d\n", SIFS);
-    // loop(handle);
+    loop(handle);
 	return EXIT_SUCCESS;
 }
 

@@ -24,7 +24,7 @@ typedef struct Header80211 {
     char addr3[6];
 }Header80211_t;
 
-int findLargerSIFS(pcap_t *handle);
+uint16_t findLargestSIFS(pcap_t *handle);
 
 int initPcap();
 int createHandle(pcap_t **handle);
