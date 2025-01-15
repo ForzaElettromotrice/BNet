@@ -324,6 +324,13 @@ int loop(pcap_t *handle)
             D_Print("Message for me!\n");
             continue;
         }
+        if (isRTS(packet))
+        {
+            uint16_t duration = getDuration(packet);
+            D_Print("RTS!");
+            D_Print("Duration = %d\n", duration);
+            continue;
+        }
         if (isCTS(packet))
         {
             uint16_t duration = getDuration(packet);
@@ -332,7 +339,7 @@ int loop(pcap_t *handle)
             mySleep(duration);
             continue;
         }
-        D_Print("Not for me, no CTS");
+        D_Print("Something else\n");
     }
 
     return EXIT_SUCCESS;
