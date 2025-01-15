@@ -166,7 +166,7 @@ int findSIFS(pcap_t *handle)
     struct timespec end;
 
     clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < 20; ++i)
+    for (int i = 0; i < 20000; ++i)
     {
         int result = pcap_next_ex(handle, &header, &packet);
         if (result == 0)
