@@ -151,31 +151,49 @@ int findSIFS(pcap_t *handle)
     struct pcap_pkthdr *header;
     const u_char *packet;
 
+    char errbuf[PCAP_ERRBUF_SIZE];
+    if(pcap_setnonblock(handle, 1, errbuf))
+    {
+        E_Print("Setnonblock: %s\n", errbuf);
+        return EXIT_FAILURE;
+    }
+
     bool rts = false;
-    struct timeval start = {};
-    struct timeval end = {};
-    for (int i = 0; i < 200; ++i)
+    struct timeval rtsTimestamp = {};
+    struct timeval ctsTimestamp = {};
+
+    struct timespec start;
+    struct timespec end;
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (int i = 0; i < 20; ++i)
     {
         int result = pcap_next_ex(handle, &header, &packet);
+        if (result == 0)
+        {
+            clock_gettime(CLOCK_MONOTONIC, &end);
+            if (end.tv_sec - start.tv_sec >= 2)
+                return -1;
+        }
         if (result != 1)
             return -1;
         if (!rts)
         {
             rts = isRTS(packet);
             if (rts)
-                memcpy(&start, &header->ts, sizeof(struct timeval));
+                memcpy(&rtsTimestamp, &header->ts, sizeof(struct timeval));
             continue;
         }
         if (isCTS(packet))
         {
-            memcpy(&end, &header->ts, sizeof(struct timeval));
+            memcpy(&ctsTimestamp, &header->ts, sizeof(struct timeval));
             break;
         }
         rts = false;
     }
 
-    long s = start.tv_sec * 1000000L + start.tv_usec;
-    long e = end.tv_sec * 1000000L + end.tv_usec;
+    long s = rtsTimestamp.tv_sec * 1000000L + rtsTimestamp.tv_usec;
+    long e = ctsTimestamp.tv_sec * 1000000L + ctsTimestamp.tv_usec;
 
     return e-s;
 }
@@ -266,9 +284,6 @@ int activateHandle(pcap_t *handle)
 
 int loop(pcap_t *handle)
 {
-    //pcap_loop(handle, 5, packetHandler, "test");
-    //TODO: devo aspettare x secondi e poi vedere se c'è un pacchetto da leggere, se non c'è vuol dire che il canale è libero e posso
-    //spedire, altrimenti aggiorno il tempo di attesa.
     struct pcap_pkthdr *header;
     const u_char *packet;
 
