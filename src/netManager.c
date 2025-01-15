@@ -157,6 +157,17 @@ bool isACK(const u_char *bytes)
     const uint8_t frameType = bytes[radiotap_len];
     return frameType == ACK;
 }
+bool isBLOCKACK(const u_char *bytes)
+{
+    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
+    const uint8_t frameType = bytes[radiotap_len];
+    return frameType == BLOCKACK;
+}
+uint8_t getFrameType(const u_char *bytes)
+{
+    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
+    return bytes[radiotap_len];
+}
 uint16_t getDuration(const u_char *bytes)
 {
     const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
@@ -350,7 +361,12 @@ int loop(pcap_t *handle)
             D_Print("ACK!\n");
             continue;
         }
-        D_Print("Something else\n");
+        if (isBLOCKACK(packet))
+        {
+            D_Print("BLOCKACK!\n");
+            continue;
+        }
+        D_Print("Something else: %02x\n", getFrameType(packet));
     }
 
     return EXIT_SUCCESS;
