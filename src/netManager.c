@@ -327,7 +327,7 @@ int loop(pcap_t *handle)
         if (isRTS(packet))
         {
             uint16_t duration = getDuration(packet);
-            D_Print("RTS!");
+            D_Print("RTS!\n");
             D_Print("Duration = %d\n", duration);
             continue;
         }
