@@ -209,7 +209,6 @@ int findLargerSIFS(pcap_t *handle)
             i--;
             continue;
         }
-        printf("%d\n", val);
         mean += val;
     }
     mean /= DIAGNOSTIC_LENGTH;
