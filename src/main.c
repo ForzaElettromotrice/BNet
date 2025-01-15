@@ -19,7 +19,6 @@ void clean(pcap_t *handle)
 
 int mainLoop(pcap_t *handle)
 {
-	// TODO: fare il loop di controllo dei pacchetti
     if(activateHandle(handle))
         return EXIT_FAILURE;
 

@@ -7,6 +7,7 @@
 #include <pcap.h>
 
 #include "logger.h"
+#include "parameters.h"
 
 #define RTS 0xb4
 #define CTS 0xc4

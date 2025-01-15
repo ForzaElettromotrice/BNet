@@ -172,7 +172,7 @@ int findSIFS(pcap_t *handle)
         if (result == 0)
         {
             clock_gettime(CLOCK_MONOTONIC, &end);
-            if (end.tv_sec - start.tv_sec >= 2)
+            if (end.tv_sec - start.tv_sec >= DIAGNOSTIC_TIMEOUT)
                 return -1;
             continue;
         }
@@ -201,7 +201,7 @@ int findSIFS(pcap_t *handle)
 int findLargerSIFS(pcap_t *handle)
 {
     int mean = 0;
-    for (int i = 0; i < 10; ++i)
+    for (int i = 0; i < DIAGNOSTIC_ATTEMPTS; ++i)
     {
         int val = findSIFS(handle);
         if (val <= 0 || val >= 500)
@@ -212,7 +212,7 @@ int findLargerSIFS(pcap_t *handle)
         printf("%d\n", val);
         mean += val;
     }
-    mean /= 10;
+    mean /= DIAGNOSTIC_ATTEMPTS;
 
     return mean;
 }
@@ -227,7 +227,6 @@ int initPcap()
 	}
 	return EXIT_SUCCESS;
 }
-
 int createHandle(pcap_t **handle)
 {
 	char errbuf[PCAP_ERRBUF_SIZE];
@@ -241,7 +240,6 @@ int createHandle(pcap_t **handle)
 
 	return EXIT_SUCCESS;
 }
-
 int setHandleOptions(pcap_t *handle)
 {
 //    int result = pcap_set_rfmon(handle, 1);
@@ -262,7 +260,6 @@ int setHandleOptions(pcap_t *handle)
 
 	return EXIT_SUCCESS;
 }
-
 int activateHandle(pcap_t *handle)
 {
     int result = pcap_activate(handle);
@@ -282,7 +279,6 @@ int activateHandle(pcap_t *handle)
 
     return EXIT_SUCCESS;
 }
-
 int loop(pcap_t *handle)
 {
     struct pcap_pkthdr *header;
