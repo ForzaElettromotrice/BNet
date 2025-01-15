@@ -162,8 +162,8 @@ int findSIFS(pcap_t *handle)
     struct timeval rtsTimestamp = {};
     struct timeval ctsTimestamp = {};
 
-    struct timespec start;
-    struct timespec end;
+    struct timespec start = {};
+    struct timespec end = {};
 
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < 20000; ++i)
@@ -174,6 +174,7 @@ int findSIFS(pcap_t *handle)
             clock_gettime(CLOCK_MONOTONIC, &end);
             if (end.tv_sec - start.tv_sec >= 2)
                 return -1;
+            continue;
         }
         if (result != 1)
             return -1;
