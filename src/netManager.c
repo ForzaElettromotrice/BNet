@@ -322,19 +322,26 @@ int loop(pcap_t *handle)
     //TODO: cambiare questo for in modo tale che esce tramite una condizione che viene data dall'esterno o da un pacchetto particolare
 
     bool canSend = false;
+    bool temp = false;
     for (int i = 0; i < 200000; ++i)
     {
         int result = pcap_next_ex(handle, &header, &packet);
         if (!result)
         {
             if (canSend)
-                printf("POSSO MANDARE!\n");
+            {
+                if (!temp)
+                {
+                    temp = true;
+                    printf("POSSO MANDARE!\n");
+                }
+            }
             mySleep(difs);
             canSend = true;
             continue;
         }
         canSend = false;
-
+        temp = false;
         if (isForMe(packet))
         {
             //TODO: gestiscilo
