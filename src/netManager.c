@@ -3,6 +3,9 @@
 uint16_t sifs = 0;
 uint16_t difs = 0;
 
+uint16_t packetCount;
+void **packetsQueue;
+
 
 void mySleep(int usec)
 {
@@ -321,8 +324,11 @@ int loop(pcap_t *handle)
 
     //TODO: cambiare questo for in modo tale che esce tramite una condizione che viene data dall'esterno o da un pacchetto particolare
 
+    bool waitCTS = false;
+    bool waitACK = false;
+    bool waitData = false;
+
     bool canSend = false;
-    bool temp = false;
     for (int i = 0; i < 200000; ++i)
     {
         int result = pcap_next_ex(handle, &header, &packet);
@@ -330,50 +336,19 @@ int loop(pcap_t *handle)
         {
             if (canSend)
             {
-                if (!temp)
-                {
-                    temp = true;
-                    printf("POSSO MANDARE!\n");
-                }
+                printf("POSSO MANDARE!\n");
             }
             mySleep(difs);
             canSend = true;
             continue;
         }
         canSend = false;
-        temp = false;
-        if (isForMe(packet))
-        {
-            //TODO: gestiscilo
-            D_Print("Message for me!\n");
+        if (!isForMe(packet))
             continue;
-        }
         if (isRTS(packet))
         {
-            uint16_t duration = getDuration(packet);
-            D_Print("RTS!\n");
-            D_Print("Duration = %d\n", duration);
-            continue;
+            mySleep(sifs);
         }
-        if (isCTS(packet))
-        {
-            uint16_t duration = getDuration(packet);
-            D_Print("CTS!\n");
-            D_Print("Duration = %d\n", duration);
-            mySleep(duration);
-            continue;
-        }
-        if (isACK(packet))
-        {
-            D_Print("ACK!\n");
-            continue;
-        }
-        if (isBLOCKACK(packet))
-        {
-            D_Print("BLOCKACK!\n");
-            continue;
-        }
-        D_Print("Something else: %02x\n", getFrameType(packet));
     }
 
     return EXIT_SUCCESS;
