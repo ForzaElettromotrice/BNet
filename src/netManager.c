@@ -3,180 +3,60 @@
 uint16_t sifs = 0;
 uint16_t difs = 0;
 
-uint16_t packetCount;
-void **packetsQueue;
+Queue_t *packetsQueue;
+
+int sendPacket(pcap_t *handle)
+{
+    size_t size;
+    void *packet;
+    if (popQueue(packetsQueue, &packet, &size))
+    {
+        E_Print("Error while sending packet!\n");
+        return EXIT_FAILURE;
+    }
+
+    const int result = pcap_inject(handle, packet, size);
+    if (result == PCAP_ERROR)
+    {
+        pushFirstQueue(packet, size, packetsQueue);
+        E_Print("inject: %s\n", pcap_geterr(handle));
+        return EXIT_FAILURE;
+    }
+
+    free(packet);
+    return EXIT_SUCCESS;
+}
+void makeCTS(const u_char *p, u_char packet[CTS_LENGTH])
+{
+    const uint8_t frameType = CTS;
+    const uint8_t flags = 0x0; //per ora non le usiamo
+    const uint16_t duration = getDuration(p) - sifs; //TODO: togliere il tempo di trasmissione
+    u_char address[6];
+    getTransmitter(p, address);
+    memcpy(packet, &frameType, sizeof(uint8_t));
+    memcpy(packet, &flags, sizeof(uint8_t));
+    memcpy(packet, &duration, sizeof(uint16_t));
+    memcpy(packet, address, 6);
+
+    const uint32_t checksum = crc32(packet, CTS_LENGTH - 4);
+    memcpy(packet + CTS_LENGTH - 4, &checksum, sizeof(uint32_t));
+}
 
 
-void mySleep(int usec)
+int sendCTS(pcap_t *handle, const u_char *p)
 {
-    struct timespec start;
-    struct timespec end;
-    clock_gettime(CLOCK_MONOTONIC, &start);
-    for (;;)
-    {
-        clock_gettime(CLOCK_MONOTONIC, &end);
-        long elapsed_nsec = (end.tv_sec - start.tv_sec) * 1000000000L + (end.tv_nsec - start.tv_nsec);
-        if (elapsed_nsec >= usec * 1000)
-            return;
-    }
-}
+    u_char packet[CTS_LENGTH];
+    makeCTS(p, packet);
 
-uint16_t handleCTS(uint32_t len, const u_char *bytes)
-{
-    uint16_t duration = bytes[2] + bytes[3] * 16;
-    const u_char *receiver = bytes + 4;
-    printf("----------CTS----------\n");
-    printf("Duration/ID: %d\n", duration);
-    printf("Receiver: ");
-    for (int i = 0; i < 5; ++i)
+    const int result = pcap_inject(handle, packet, CTS_LENGTH);
+    if (result == PCAP_ERROR)
     {
-        printf("%02x:", receiver[i]);
+        E_Print("inject cts: %s\n", pcap_geterr(handle));
+        return EXIT_FAILURE;
     }
-    printf("%02x\n", receiver[5]);
-    return duration;
-}
-uint16_t handleRTS(uint32_t len, const u_char *bytes)
-{
-    uint16_t duration = bytes[2] + bytes[3] * 16;
-    const u_char *receiver = bytes + 4;
-    const u_char *transmitter = bytes + 10;
-    printf("----------RTS----------\n");
-    printf("Duration/ID: %d\n", duration);
-    printf("Transmitter: ");
-    for (int i = 0; i < 5; ++i)
-    {
-        printf("%02x:", transmitter[i]);
-    }
-    printf("%02x\n", transmitter[5]);
-    printf("Receiver: ");
-    for (int i = 0; i < 5; ++i)
-    {
-        printf("%02x:", receiver[i]);
-    }
-    printf("%02x\n", receiver[5]);
-    return duration;
-}
-uint16_t handleACK(uint32_t len, const u_char *bytes)
-{
-    uint16_t duration = bytes[2] + bytes[3] * 16;
-    const u_char *receiver = bytes + 4;
-    const u_char *transmitter = bytes + 10;
-    printf("----------ACK----------\n");
-    printf("Duration/ID: %d\n", duration);
-    printf("Transmitter: ");
-    for (int i = 0; i < 5; ++i)
-    {
-        printf("%02x:", transmitter[i]);
-    }
-    printf("%02x\n", transmitter[5]);
-    printf("Receiver: ");
-    for (int i = 0; i < 5; ++i)
-    {
-        printf("%02x:", receiver[i]);
-    }
-    printf("%02x\n", receiver[5]);
-    return duration;
-}
-uint16_t handleBLOCKACK(uint32_t len, const u_char *bytes)
-{
-    uint16_t duration = bytes[2] + bytes[3] * 16;
-    const u_char *receiver = bytes + 4;
-    const u_char *transmitter = bytes + 10;
-    printf("----------BLOCK ACK----------\n");
-    printf("Duration: %d\n", duration);
-    printf("Transmitter: ");
-    for (int i = 0; i < 5; ++i)
-    {
-        printf("%02x:", transmitter[i]);
-    }
-    printf("%02x\n", transmitter[5]);
-    printf("Receiver: ");
-    for (int i = 0; i < 5; ++i)
-    {
-        printf("%02x:", receiver[i]);
-    }
-    printf("%02x\n", receiver[5]);
-    return duration;
-}
-uint16_t packetHandler(const struct pcap_pkthdr *h, const u_char *bytes)
-{
-    //printf("--------------------\n");
-    printf("Timestamp: %ld.%ld\n", h->ts.tv_sec, h->ts.tv_usec);
-    //printf("Caplen: %d\n", h->caplen)
-    //printf("Len: %d\n", h->len);
-    //printf("User: %s\n", user);
-    uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    //printf("Radiotap_len = %d\n", radiotap_len);
 
-    uint8_t frameType = bytes[radiotap_len];
-    uint8_t flags = bytes[radiotap_len + 1];
-    //printf("%02x\n", frameType);
-    if (frameType == CTS)
-    {
-        return handleCTS(h->len - radiotap_len, bytes + radiotap_len);
-    }
-    if (frameType == RTS)
-    {
-        /*uint16_t a = handleRTS(h->len - radiotap_len, bytes+radiotap_len);*/
-        /*printf("Timestamp: %ld.%ld\n", h->ts.tv_sec, h->ts.tv_usec);*/
-        /*return a; */
-        return handleRTS(h->len - radiotap_len, bytes + radiotap_len);
-    } else if (frameType == BEACON)
-        printf("BEACON!\n");
-    else if (frameType == ACK)
-    {
-        return handleACK(h->len - radiotap_len, bytes + radiotap_len);
-    } else if (frameType == BLOCKACK)
-    {
-        return handleBLOCKACK(h->len - radiotap_len, bytes + radiotap_len);
-    } else
-    {
-        printf("ALTRO: %02x\n", bytes[radiotap_len]);
-    }
-    return 0;
+    return EXIT_SUCCESS;
 }
-
-bool isForMe(const u_char *bytes)
-{
-    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    const u_char *receiver = bytes + radiotap_len + 4;
-    return strcmp((const char *) receiver, MY_ADDR) == 0;
-}
-bool isRTS(const u_char *bytes)
-{
-    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    const uint8_t frameType = bytes[radiotap_len];
-    return frameType == RTS;
-}
-bool isCTS(const u_char *bytes)
-{
-    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    const uint8_t frameType = bytes[radiotap_len];
-    return frameType == CTS;
-}
-bool isACK(const u_char *bytes)
-{
-    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    const uint8_t frameType = bytes[radiotap_len];
-    return frameType == ACK;
-}
-bool isBLOCKACK(const u_char *bytes)
-{
-    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    const uint8_t frameType = bytes[radiotap_len];
-    return frameType == BLOCKACK;
-}
-uint8_t getFrameType(const u_char *bytes)
-{
-    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    return bytes[radiotap_len];
-}
-uint16_t getDuration(const u_char *bytes)
-{
-    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    return bytes[radiotap_len + 2] + bytes[radiotap_len + 3] * 16;
-}
-
 
 uint16_t findSIFS(pcap_t *handle)
 {
@@ -200,7 +80,7 @@ uint16_t findSIFS(pcap_t *handle)
     clock_gettime(CLOCK_MONOTONIC, &start);
     for (int i = 0; i < 20000; ++i)
     {
-        int result = pcap_next_ex(handle, &header, &packet);
+        const int result = pcap_next_ex(handle, &header, &packet);
         if (result == 0)
         {
             clock_gettime(CLOCK_MONOTONIC, &end);
@@ -225,8 +105,8 @@ uint16_t findSIFS(pcap_t *handle)
         rts = false;
     }
 
-    long s = rtsTimestamp.tv_sec * 1000000L + rtsTimestamp.tv_usec;
-    long e = ctsTimestamp.tv_sec * 1000000L + ctsTimestamp.tv_usec;
+    const long s = rtsTimestamp.tv_sec * 1000000L + rtsTimestamp.tv_usec;
+    const long e = ctsTimestamp.tv_sec * 1000000L + ctsTimestamp.tv_usec;
 
     return e - s;
 }
@@ -235,7 +115,7 @@ uint16_t findLargestSIFS(pcap_t *handle)
     int mean = 0;
     for (int i = 0; i < DIAGNOSTIC_LENGTH; ++i)
     {
-        int val = findSIFS(handle);
+        const int val = findSIFS(handle);
         if (val <= 0 || val >= 500)
         {
             i--;
@@ -256,6 +136,13 @@ int initPcap()
         E_Print("Pcap init failed: %s\n", errbuf);
         return EXIT_FAILURE;
     }
+
+    if (initQueue(&packetsQueue))
+    {
+        E_Print("Error while initiating the packets queue\n");
+        return EXIT_FAILURE;
+    }
+
     return EXIT_SUCCESS;
 }
 int createHandle(pcap_t **handle)
@@ -273,15 +160,9 @@ int createHandle(pcap_t **handle)
 }
 int setHandleOptions(pcap_t *handle)
 {
-    //    int result = pcap_set_rfmon(handle, 1);
-    //    if(result != 0)
-    //    {
-    //        E_Print("Can't set monitor mode! %d\n", result);
-    //        return EXIT_FAILURE;
-    //  }
     // TODO: delay (packet buffer timeout) fra una lettura di un pacchetto e l'altra, non so se metterlo
     // TODO: in caso si può mettere la immediate mode
-    int result = pcap_set_immediate_mode(handle, 1);
+    const int result = pcap_set_immediate_mode(handle, 1);
     if (result != 0)
     {
         E_Print("Can't set immediate mode! %d\n", result);
@@ -293,7 +174,7 @@ int setHandleOptions(pcap_t *handle)
 }
 int activateHandle(pcap_t *handle)
 {
-    int result = pcap_activate(handle);
+    const int result = pcap_activate(handle);
     if (result > 0)
     {
         D_Print("Handle activated with Warning %d\n", result);
@@ -304,7 +185,7 @@ int activateHandle(pcap_t *handle)
         return EXIT_FAILURE;
     }
 
-    int datalink = pcap_datalink(handle);
+    const int datalink = pcap_datalink(handle);
     D_Print("The datalink for this handle is: %s\n", pcap_datalink_val_to_name(datalink));
 
     return EXIT_SUCCESS;
@@ -324,30 +205,95 @@ int loop(pcap_t *handle)
 
     //TODO: cambiare questo for in modo tale che esce tramite una condizione che viene data dall'esterno o da un pacchetto particolare
 
-    bool waitCTS = false;
-    bool waitACK = false;
-    bool waitData = false;
-
-    bool canSend = false;
+    State_t state = CLEAR;
     for (int i = 0; i < 200000; ++i)
     {
-        int result = pcap_next_ex(handle, &header, &packet);
+        const int result = pcap_next_ex(handle, &header, &packet);
         if (!result)
         {
-            if (canSend)
-            {
-                printf("POSSO MANDARE!\n");
-            }
+            if (isEmpty(packetsQueue) || state != CLEAR)
+                continue;
             mySleep(difs);
-            canSend = true;
+            //TODO: contention window
+            if (!isChannelFree(handle))
+                continue;
+            if (sendPacket(handle))
+                continue;
+
+            state = WAIT_CTS;
+        }
+
+        if (!isForMe(packet))
+        {
+            mySleep(getDuration(packet));
             continue;
         }
-        canSend = false;
-        if (!isForMe(packet))
-            continue;
-        if (isRTS(packet))
+
+        switch (state)
         {
-            mySleep(sifs);
+            case CLEAR:
+                if (!isRTS(packet))
+                    continue;
+
+                mySleep(sifs);
+                if (!isChannelFree(handle))
+                    continue;
+                if (sendCTS(handle, packet))
+                    continue;
+                state = WAIT_DATA;
+                break;
+            case WAIT_CTS:
+                if (!isCTS(packet))
+                {
+                    state = CLEAR;
+                    break;
+                }
+            //TODO: mandare i dati
+                mySleep(sifs);
+                if (!isChannelFree(handle))
+                {
+                    state = CLEAR;
+                    continue;
+                }
+
+                if (sendPacket(handle))
+                {
+                    state = CLEAR;
+                    continue;
+                }
+                state = WAIT_ACK;
+
+                break;
+            case WAIT_DATA:
+                if (!isDATA(packet))
+                {
+                    state = CLEAR;
+                    break;
+                }
+            //TODO: mandare l'ack
+                mySleep(sifs);
+                if (!isChannelFree(handle))
+                {
+                    state = CLEAR;
+                    continue;
+                }
+                if (sendPacket(handle))
+                {
+                    state = CLEAR;
+                    continue;
+                }
+                state = CLEAR;
+
+                break;
+            case WAIT_ACK:
+                if (!isACK(packet))
+                {
+                    state = CLEAR;
+                    break;
+                }
+            //TODO: contrassegnare il messaggio come inviato
+                state = CLEAR;
+                break;
         }
     }
 

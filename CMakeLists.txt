@@ -16,11 +16,15 @@ find_library(PCAP_LIBRARY pcap REQUIRED)
 #find_package(Pcap REQUIRED)
 
 add_executable(BNet src/main.c
-					src/main.h
-					src/netManager.c
-					src/netManager.h
-					src/logger.c
-					src/logger.h
-					src/parameters.h)
+        src/main.h
+        src/netManager.c
+        src/netManager.h
+        src/logger.c
+        src/logger.h
+        src/parameters.h
+        src/queue.c
+        src/queue.h
+        src/netUtils.c
+        src/netUtils.h)
 
 target_link_libraries(BNet PRIVATE ${PCAP_LIBRARY})

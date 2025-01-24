@@ -8,12 +8,20 @@
 
 #include "logger.h"
 #include "parameters.h"
+#include "queue.h"
+#include "netUtils.h"
 
-#define RTS 0xb4
-#define CTS 0xc4
-#define ACK 0xd4
-#define BLOCKACK 0x94
-#define BEACON 0x80
+#define RTS_LENGTH 20
+#define CTS_LENGTH 14
+
+typedef enum State
+{
+    CLEAR,
+    WAIT_CTS,
+    WAIT_DATA,
+    WAIT_ACK
+} State_t;
+
 
 uint16_t findLargestSIFS(pcap_t *handle);
 

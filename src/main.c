@@ -2,11 +2,11 @@
 
 int init(pcap_t **handle)
 {
-	if(initPcap())
+	if (initPcap())
 		return EXIT_FAILURE;
-	if(createHandle(handle))
+	if (createHandle(handle))
 		return EXIT_FAILURE;
-	if(setHandleOptions(*handle))
+	if (setHandleOptions(*handle))
 		return EXIT_FAILURE;
 
 	return EXIT_SUCCESS;
@@ -19,10 +19,10 @@ void clean(pcap_t *handle)
 
 int mainLoop(pcap_t *handle)
 {
-    if(activateHandle(handle))
-        return EXIT_FAILURE;
+	if (activateHandle(handle))
+		return EXIT_FAILURE;
 
-    loop(handle);
+	loop(handle);
 	return EXIT_SUCCESS;
 }
 
@@ -32,13 +32,12 @@ int main()
 	D_Print("Launched in Debug Mode!\n");
 #endif
 
-
 	pcap_t *handle;
 	if(init(&handle))
 		return EXIT_FAILURE;
 
 	int out = mainLoop(handle);
 
-    clean(handle);
+	   clean(handle);
 	return out;
 }
