@@ -35,9 +35,9 @@ int mainLoop(pcap_t *handle)
 	address[4] = 0x12;
 	address[5] = 0xed;
 	memcpy(packet, &frameType, sizeof(uint8_t));
-	memcpy(packet, &flags, sizeof(uint8_t));
-	memcpy(packet, &duration, sizeof(uint16_t));
-	memcpy(packet, address, 6);
+	memcpy(packet + 1, &flags, sizeof(uint8_t));
+	memcpy(packet + 2, &duration, sizeof(uint16_t));
+	memcpy(packet + 4, address, 6);
 
 	const uint32_t checksum = crc32(packet, CTS_LENGTH - 4);
 	memcpy(packet + CTS_LENGTH - 4, &checksum, sizeof(uint32_t));
