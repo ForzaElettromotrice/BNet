@@ -37,4 +37,4 @@ uint16_t getDuration(const u_char *bytes);
 
 void getTransmitter(const u_char *bytes, u_char address[6]);
 
-uint32_t crc32(const unsigned char *data, size_t length)
+uint32_t crc32(const unsigned char *data, size_t length);
