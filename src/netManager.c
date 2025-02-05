@@ -5,6 +5,83 @@ uint16_t difs = 0;
 
 Queue_t *packetsQueue;
 
+void temp(pcap_t *handle)
+{
+    const u_char radiotap_header[] = {
+        0x00, 0x00, 0x09, 0x00, 0x02, 0x00, 0x00, 0x00, 0x10
+    };
+    const uint8_t frameType = CTS;
+    const uint8_t flags = 0x0; //per ora non le usiamo
+    const uint16_t duration = 0; //TODO: togliere il tempo di trasmissione
+    const u_char address[] = {
+        0x24, 0xec, 0x99, 0xd0, 0x92, 0x67
+    }; // 24:ec:99:d0:92:6d
+    u_char packet[sizeof(radiotap_header) + CTS_LENGTH];
+
+    memcpy(packet, radiotap_header, sizeof(radiotap_header));
+    memcpy(packet + sizeof(radiotap_header), &frameType, sizeof(uint8_t));
+    memcpy(packet + 1 + sizeof(radiotap_header), &flags, sizeof(uint8_t));
+    memcpy(packet + 2 + sizeof(radiotap_header), &duration, sizeof(uint16_t));
+    memcpy(packet + 4 + sizeof(radiotap_header), address, 6);
+
+    const uint32_t checksum = crc32(packet, sizeof(radiotap_header) + CTS_LENGTH - 4);
+    memcpy(packet + sizeof(radiotap_header) + CTS_LENGTH - 4, &checksum, sizeof(uint32_t));
+
+    // for (int i = 0; i < sizeof(radiotap_header) + CTS_LENGTH; ++i)
+    // {
+    //     printf("%02x ", packet[i]);
+    // }
+    // printf("\n");
+
+    const int result = pcap_inject(handle, packet, sizeof(radiotap_header) + CTS_LENGTH);
+    if (result == -1 || result == 23)
+        return;
+    // TODO: controlla se fallisce
+    printf("%d\n", result);
+    printf("%s\n", pcap_geterr(handle));
+}
+void temp2(pcap_t *handle)
+{
+    const u_char radiotap_header[] = {
+        0x00, 0x00, 0x09, 0x00, 0x02, 0x00, 0x00, 0x00, 0x10
+    };
+    const uint8_t frameType = RTS;
+    const uint8_t flags = 0x0; //per ora non le usiamo
+    const uint16_t duration = 0; //TODO: togliere il tempo di trasmissione
+    const u_char address[] = {
+        0x24, 0xec, 0x99, 0xd0, 0x92, 0x6d
+    }; // 24:ec:99:d0:92:6d
+
+    const u_char address2[] = {
+        0x24, 0xec, 0x99, 0xd0, 0x92, 0x6d
+    }; // 24:ec:99:d0:92:6d
+    u_char packet[sizeof(radiotap_header) + RTS_LENGTH];
+
+    memcpy(packet, radiotap_header, sizeof(radiotap_header));
+    memcpy(packet + sizeof(radiotap_header), &frameType, sizeof(uint8_t));
+    memcpy(packet + 1 + sizeof(radiotap_header), &flags, sizeof(uint8_t));
+    memcpy(packet + 2 + sizeof(radiotap_header), &duration, sizeof(uint16_t));
+    memcpy(packet + 4 + sizeof(radiotap_header), address, 6);
+    memcpy(packet + 10 + sizeof(radiotap_header), address2, 6);
+
+    const uint32_t checksum = crc32(packet, sizeof(radiotap_header) + RTS_LENGTH - 4);
+    memcpy(packet + sizeof(radiotap_header) + RTS_LENGTH - 4, &checksum, sizeof(uint32_t));
+
+    // for (int i = 0; i < sizeof(radiotap_header) + CTS_LENGTH; ++i)
+    // {
+    //     printf("%02x ", packet[i]);
+    // }
+    // printf("\n");
+
+    const int result = pcap_inject(handle, packet, sizeof(radiotap_header) + RTS_LENGTH);
+    if (result == -1 || result == 29)
+        return;
+    // TODO: controlla se fallisce
+    printf("%d\n", result);
+    printf("%s\n", pcap_geterr(handle));
+}
+
+
 int sendPacket(pcap_t *handle)
 {
     size_t size;
@@ -211,14 +288,16 @@ int loop(pcap_t *handle)
         const int result = pcap_next_ex(handle, &header, &packet);
         if (!result)
         {
-            if (isEmpty(packetsQueue) || state != CLEAR)
-                continue;
+            // if (isEmpty(packetsQueue) || state != CLEAR)
+            //     continue;
             mySleep(difs);
             //TODO: contention window
             if (!isChannelFree(handle))
                 continue;
-            if (sendPacket(handle))
-                continue;
+            temp(handle);
+            continue;
+            // if (sendPacket(handle))
+            //     continue;
 
             state = WAIT_CTS;
         }

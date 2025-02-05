@@ -3,9 +3,9 @@
 //
 #pragma once
 
-#define DIAGNOSTIC_LENGTH 3
-#define DIAGNOSTIC_TIMEOUT 2
+#define DIAGNOSTIC_LENGTH 1
+#define DIAGNOSTIC_TIMEOUT 1
 
 #define SLOT_TIME 9
 
-#define MY_ADDR "74:19:f8:11:12:ed"
+#define MY_ADDR "24:ec:99:95:45:81"
