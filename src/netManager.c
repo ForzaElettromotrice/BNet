@@ -27,11 +27,11 @@ void temp(pcap_t *handle)
     const uint32_t checksum = crc32(packet, sizeof(radiotap_header) + CTS_LENGTH - 4);
     memcpy(packet + sizeof(radiotap_header) + CTS_LENGTH - 4, &checksum, sizeof(uint32_t));
 
-    // for (int i = 0; i < sizeof(radiotap_header) + CTS_LENGTH; ++i)
-    // {
-    //     printf("%02x ", packet[i]);
-    // }
-    // printf("\n");
+    for (int i = 0; i < sizeof(radiotap_header) + CTS_LENGTH; ++i)
+    {
+        printf("%02x ", packet[i]);
+    }
+    printf("\n");
 
     const int result = pcap_inject(handle, packet, sizeof(radiotap_header) + CTS_LENGTH);
     if (result == -1 || result == 23)
@@ -67,11 +67,11 @@ void temp2(pcap_t *handle)
     const uint32_t checksum = crc32(packet, sizeof(radiotap_header) + RTS_LENGTH - 4);
     memcpy(packet + sizeof(radiotap_header) + RTS_LENGTH - 4, &checksum, sizeof(uint32_t));
 
-    // for (int i = 0; i < sizeof(radiotap_header) + CTS_LENGTH; ++i)
-    // {
-    //     printf("%02x ", packet[i]);
-    // }
-    // printf("\n");
+    for (int i = 0; i < sizeof(radiotap_header) + RTS_LENGTH; ++i)
+    {
+        printf("%02x ", packet[i]);
+    }
+    printf("\n");
 
     const int result = pcap_inject(handle, packet, sizeof(radiotap_header) + RTS_LENGTH);
     if (result == -1 || result == 29)
@@ -294,6 +294,7 @@ int loop(pcap_t *handle)
             //TODO: contention window
             if (!isChannelFree(handle))
                 continue;
+            // temp2(handle);
             temp(handle);
             continue;
             // if (sendPacket(handle))

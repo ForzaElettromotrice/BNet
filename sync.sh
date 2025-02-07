@@ -1,4 +1,4 @@
-addresses=("20.0.1.163" "20.0.1.221")
+addresses=("20.0.1.163")
 
 for address in "${addresses[@]}";
 do
