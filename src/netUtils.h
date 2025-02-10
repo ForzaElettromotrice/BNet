@@ -37,7 +37,7 @@
  *      - 0x20 	frame has padding between 802.11 header and payload (to 32-bit boundary) -> 0
  *      - 0x40 	frame failed FCS check -> 0
  *      - 0x80 	frame used short guard interval (HT) -> 0
- * 2 	Rate -> 1 (1 byte) (misurato in 500 Kbps) -> 108 (54 Mbps)
+ * 2 	Rate -> 1 (1 byte) (misurato in 500 Kbps) -> 130 (65 Mbps)
  * 3 	Channel -> 1
  *      - Frequenza (2 byte) (MHz) (Little Endian) -> da decidere
  *      - Flags (2 byte) (da 0 -> 15)
@@ -58,7 +58,7 @@
  * 7 	Lock quality --> 0
  * 8 	TX attenuation --> 0
  * 9 	dB TX attenuation --> 0
- * 10 	dBm TX power --> 1 (1 byte) (1 byte allineamento) --> fino a 30 dBm
+ * 10 	dBm TX power --> 1 (1 byte) (1 byte allineamento) --> fino a 20 dBm
  * 11 	Antenna --> 1 (1 byte) --> Dovrebbe essere 1
  * 12 	dB antenna signal --> 0
  * 13 	dB antenna noise --> 0
@@ -73,18 +73,35 @@
  * 16   Non in lista -->0
  * 17   Non in lista -->0
  * 18   Non in lista -->0
- * 19 	MCS --> da decidere
+ * 19 	MCS --> 1 (3 byte) (1 byte allineamento)
+ *      - Know
+ *      - 0x01 	bandwidth --> 1
+ *      - 0x02 	MCS index known (in mcs part of the field) --> 1
+ *      - 0x04 	guard interval --> 1
+ *      - 0x08 	HT format --> 1
+ *      - 0x10 	FEC type --> 1
+ *      - 0x20 	STBC known --> 1
+ *      - 0x40 	Ness known (Number of extension spatial streams) --> 1
+ *      - 0x80 	Ness data - bit 1 (MSB) of Number of extension spatial streams --> 0
+ *      - Flags
+ *      - 0x03 	bandwidth - 0: 20, 1: 40, 2: 20L, 3: 20U --> 1
+ *      - 0x04 	guard interval - 0: long GI, 1: short GI --> 0
+ *      - 0x08 	HT format - 0: mixed, 1: greenfield --> 0
+ *      - 0x10 	FEC type - 0: BCC, 1: LDPC --> 0
+ *      - 0x60 	Number of STBC streams --> 01
+ *      - 0x80 	Ness - bit 0 (LSB) of Number of extension spatial streams --> 0
+ *      - MCS index --> 7
  * 20 	A-MPDU status --> 0
- * 21 	VHT --> da decidere
+ * 21 	VHT --> 0
  * 22 	timestamp --> 0
- * 23 	HE --> da decidere
- * 24 	HE-MU --> da decidere
+ * 23 	HE --> 0
+ * 24 	HE-MU --> 0
  * 25 	HE-MU-other-user --> 0
  * 26 	0-length-PSDU --> 0
  * 27 	L-SIG --> 0
- * 28 	TLV fields in radiotap --> da decidere
- * 29 	Radiotap Namespace --> da decidere
- * 30 	Vendor Namespace --> da decidere
+ * 28 	TLV fields in radiotap --> 0
+ * 29 	Radiotap Namespace --> 0
+ * 30 	Vendor Namespace --> 0
  * 31   Altra tabella --> 0
  */
 typedef struct RadiotapHeader
