@@ -124,3 +124,21 @@ uint32_t crc32(const u_char *data, const size_t size)
     }
     return ~crc;
 }
+
+void buildRadiotap(MyRadiotap_t *radiotap)
+{
+    radiotap->version = 0x00;
+    radiotap->pad = 0x00;
+    radiotap->len = 0x0015;
+    radiotap->fields = 0x20088c0e;
+    radiotap->flags = 0x10;
+    radiotap->rate = 0x82;
+    radiotap->frequency = 0x0985; //TODO
+    radiotap->channelFlags = 0x00c0;
+    radiotap->power = 0x14;
+    radiotap->antenna = 0x01;
+    radiotap->txFlags = 0x0038;
+    radiotap->MCSKnown = 0x7f;
+    radiotap->MCSFlags = 0x31;
+    radiotap->MCS = 0x07;
+}

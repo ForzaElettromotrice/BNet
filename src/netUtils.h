@@ -22,6 +22,44 @@
 #define BLOCKACK 0x94
 #define BEACON 0x80
 
+
+typedef struct MyRadiotap
+{
+    uint8_t version;
+    uint8_t pad;
+    uint16_t len; // little endian
+    uint32_t fields; // little endian
+    uint8_t flags;
+    uint8_t rate;
+    uint16_t frequency; //little endian
+    uint16_t channelFlags; //little endian
+    uint8_t power;
+    uint8_t antenna;
+    uint16_t txFlags; //little endian
+    uint8_t MCSKnown;
+    uint8_t MCSFlags;
+    uint8_t MCS;
+}__attribute__((__packed__)) MyRadiotap_t;
+
+void mySleep(int usec);
+
+bool isForMe(const u_char *bytes);
+bool isRTS(const u_char *bytes);
+bool isCTS(const u_char *bytes);
+bool isDATA(const u_char *bytes);
+bool isACK(const u_char *bytes);
+bool isBLOCKACK(const u_char *bytes);
+bool isChannelFree(pcap_t *handle);
+
+uint8_t getFrameType(const u_char *bytes);
+uint16_t getDuration(const u_char *bytes);
+
+void getTransmitter(const u_char *bytes, u_char address[6]);
+
+uint32_t crc32(const u_char *data, size_t size);
+
+void buildRadiotap(MyRadiotap_t *radiotap);
+
 /**
  * Version -> 0
  * Padding -> 0
@@ -100,32 +138,7 @@
  * 26 	0-length-PSDU --> 0
  * 27 	L-SIG --> 0
  * 28 	TLV fields in radiotap --> 0
- * 29 	Radiotap Namespace --> 0
+ * 29 	Radiotap Namespace --> 1
  * 30 	Vendor Namespace --> 0
  * 31   Altra tabella --> 0
  */
-typedef struct RadiotapHeader
-{
-    uint8_t version;
-    uint8_t padding;
-    uint16_t len;
-    uint32_t fields;
-} __attribute__((__packed__)) RadiotapHeader_t;
-
-
-void mySleep(int usec);
-
-bool isForMe(const u_char *bytes);
-bool isRTS(const u_char *bytes);
-bool isCTS(const u_char *bytes);
-bool isDATA(const u_char *bytes);
-bool isACK(const u_char *bytes);
-bool isBLOCKACK(const u_char *bytes);
-bool isChannelFree(pcap_t *handle);
-
-uint8_t getFrameType(const u_char *bytes);
-uint16_t getDuration(const u_char *bytes);
-
-void getTransmitter(const u_char *bytes, u_char address[6]);
-
-uint32_t crc32(const u_char *data, size_t size);
