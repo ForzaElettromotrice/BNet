@@ -9,3 +9,4 @@
 #define SLOT_TIME 9
 
 #define MY_ADDR "24:ec:99:95:45:81"
+#define BROADCAST "ff:ff:ff:ff:ff:ff"

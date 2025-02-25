@@ -4,81 +4,10 @@ uint16_t sifs = 0;
 uint16_t difs = 0;
 
 Queue_t *packetsQueue;
+void (*cback)(PacketType_t, size_t, u_char *);
 
-
-void temp(pcap_t *handle)
-{
-    MyRadiotap_t radiotap;
-    buildRadiotap(&radiotap);
-    const uint8_t frameType = CTS;
-    const uint8_t flags = 0x0; //per ora non le usiamo
-    const uint16_t duration = 0; //TODO: togliere il tempo di trasmissione
-    const u_char address[] = {
-        0x24, 0xec, 0x99, 0xd0, 0x92, 0x67
-    }; // 24:ec:99:d0:92:6d
-    u_char packet[radiotap.len + CTS_LENGTH];
-
-    memcpy(packet, &radiotap, radiotap.len);
-    memcpy(packet + radiotap.len, &frameType, sizeof(uint8_t));
-    memcpy(packet + 1 + radiotap.len, &flags, sizeof(uint8_t));
-    memcpy(packet + 2 + radiotap.len, &duration, sizeof(uint16_t));
-    memcpy(packet + 4 + radiotap.len, address, 6);
-
-    const uint32_t checksum = crc32(packet, radiotap.len + CTS_LENGTH - 4);
-    memcpy(packet + radiotap.len + CTS_LENGTH - 4, &checksum, sizeof(uint32_t));
-
-    for (int i = 0; i < radiotap.len + CTS_LENGTH; ++i)
-    {
-        printf("%02x ", packet[i]);
-    }
-    printf("\n");
-
-    const int result = pcap_inject(handle, packet, radiotap.len + CTS_LENGTH);
-    if (result == -1 || result == radiotap.len + CTS_LENGTH)
-        return;
-    // TODO: controlla se fallisce
-    printf("%d\n", result);
-    printf("%s\n", pcap_geterr(handle));
-}
-void temp2(pcap_t *handle)
-{
-    MyRadiotap_t radiotap;
-    buildRadiotap(&radiotap);
-    const uint8_t frameType = RTS;
-    const uint8_t flags = 0x0; //per ora non le usiamo
-    const uint16_t duration = 0; //TODO: togliere il tempo di trasmissione
-    const u_char address[] = {
-        0x24, 0xec, 0x99, 0xd0, 0x92, 0x6d
-    }; // 24:ec:99:d0:92:6d
-
-    const u_char address2[] = {
-        0x24, 0xec, 0x99, 0xd0, 0x92, 0x6d
-    }; // 24:ec:99:d0:92:6d
-    u_char packet[radiotap.len + RTS_LENGTH];
-
-    memcpy(packet, &radiotap, radiotap.len);
-    memcpy(packet + radiotap.len, &frameType, sizeof(uint8_t));
-    memcpy(packet + 1 + radiotap.len, &flags, sizeof(uint8_t));
-    memcpy(packet + 2 + radiotap.len, &duration, sizeof(uint16_t));
-    memcpy(packet + 4 + radiotap.len, address, 6);
-    memcpy(packet + 10 + radiotap.len, address2, 6);
-
-    const uint32_t checksum = crc32(packet, radiotap.len + RTS_LENGTH - 4);
-    memcpy(packet + radiotap.len + RTS_LENGTH - 4, &checksum, sizeof(uint32_t));
-
-    for (int i = 0; i < radiotap.len + RTS_LENGTH; ++i)
-    {
-        printf("%02x ", packet[i]);
-    }
-    printf("\n");
-
-    const int result = pcap_inject(handle, packet, radiotap.len + RTS_LENGTH);
-    if (result == -1 || result == radiotap.len + RTS_LENGTH)
-        return;
-    // TODO: controlla se fallisce
-    printf("%d\n", result);
-    printf("%s\n", pcap_geterr(handle));
-}
+volatile bool looping = false;
+pthread_t thread;
 
 
 int sendPacket(pcap_t *handle)
@@ -102,37 +31,25 @@ int sendPacket(pcap_t *handle)
     free(packet);
     return EXIT_SUCCESS;
 }
-void makeCTS(const u_char *p, u_char packet[CTS_LENGTH])
+void handlePacket(const struct pcap_pkthdr *header, const u_char *packet)
 {
-    const uint8_t frameType = CTS;
-    const uint8_t flags = 0x0; //per ora non le usiamo
-    const uint16_t duration = getDuration(p) - sifs; //TODO: togliere il tempo di trasmissione
-    u_char address[6];
-    getTransmitter(p, address);
-    memcpy(packet, &frameType, sizeof(uint8_t));
-    memcpy(packet, &flags, sizeof(uint8_t));
-    memcpy(packet, &duration, sizeof(uint16_t));
-    memcpy(packet, address, 6);
-
-    const uint32_t checksum = crc32(packet, CTS_LENGTH - 4);
-    memcpy(packet + CTS_LENGTH - 4, &checksum, sizeof(uint32_t));
-}
-
-
-int sendCTS(pcap_t *handle, const u_char *p)
-{
-    u_char packet[CTS_LENGTH];
-    makeCTS(p, packet);
-
-    const int result = pcap_inject(handle, packet, CTS_LENGTH);
-    if (result == PCAP_ERROR)
+    if (cback == NULL)
+        return;
+    if (isBeacon(packet))
     {
-        E_Print("inject cts: %s\n", pcap_geterr(handle));
-        return EXIT_FAILURE;
-    }
+        int8_t tagLen;
+        const char *ssid = getBeaconSSID(packet, header->len, &tagLen);
+        if (tagLen != 7 && strcmp(ssid, "AutoNet") != 0)
+            return;
 
-    return EXIT_SUCCESS;
+        const u_char *data = getBeaconData(packet, header->len, &tagLen);
+
+        u_char *finalData = malloc(tagLen * sizeof(u_char));
+        memcpy(finalData, data, tagLen);
+        cback(Beacon, tagLen, finalData);
+    }
 }
+
 
 uint16_t findSIFS(pcap_t *handle)
 {
@@ -188,6 +105,8 @@ uint16_t findSIFS(pcap_t *handle)
 }
 uint16_t findLargestSIFS(pcap_t *handle)
 {
+    //TODO: migliorare questa funzione, mettere un limite temporale nel quale se non trova dati lo decide di suo
+    //TODO: e inoltre va migliorata la logica secondo cui viene calcolato sto tempo
     int mean = 0;
     for (int i = 0; i < DIAGNOSTIC_LENGTH; ++i)
     {
@@ -204,6 +123,7 @@ uint16_t findLargestSIFS(pcap_t *handle)
     return mean;
 }
 
+
 int initPcap()
 {
     char errbuf[PCAP_ERRBUF_SIZE];
@@ -219,8 +139,16 @@ int initPcap()
         return EXIT_FAILURE;
     }
 
+    cback = NULL;
+
     return EXIT_SUCCESS;
 }
+void cleanPcap(pcap_t *handle)
+{
+    pcap_close(handle);
+}
+
+
 int createHandle(pcap_t **handle)
 {
     char errbuf[PCAP_ERRBUF_SIZE];
@@ -248,6 +176,10 @@ int setHandleOptions(pcap_t *handle)
 
     return EXIT_SUCCESS;
 }
+void setCallback(void (*callback)(PacketType_t, size_t, u_char *))
+{
+    cback = callback;
+}
 int activateHandle(pcap_t *handle)
 {
     const int result = pcap_activate(handle);
@@ -266,12 +198,26 @@ int activateHandle(pcap_t *handle)
 
     return EXIT_SUCCESS;
 }
-int loop(pcap_t *handle)
+
+void addPacket(const PacketType_t type, const void *data, const size_t len)
 {
+    switch (type)
+    {
+        case Beacon:
+            pushQueue(data, len, packetsQueue);
+            break;
+        case Data:
+            break;
+    }
+}
+
+void *loop(void *arg)
+{
+    pcap_t *handle = arg;
     struct pcap_pkthdr *header;
     const u_char *packet;
 
-    //sifs = findLargestSIFS(handle);
+    // sifs = findLargestSIFS(handle);
     sifs = 30;
     difs = SLOT_TIME * 2 + sifs;
 
@@ -282,30 +228,23 @@ int loop(pcap_t *handle)
     if (pcap_setnonblock(handle, 1, errbuf))
     {
         E_Print("Setnonblock: %s\n", errbuf);
-        return EXIT_FAILURE;
+        return NULL;
     }
 
-    //TODO: cambiare questo for in modo tale che esce tramite una condizione che viene data dall'esterno o da un pacchetto particolare
-
-    State_t state = CLEAR;
-    for (int i = 0; i < 200000; ++i)
+    looping = true;
+    while (looping)
     {
         const int result = pcap_next_ex(handle, &header, &packet);
         if (!result)
         {
-            // if (isEmpty(packetsQueue) || state != CLEAR)
-            //     continue;
+            if (isEmpty(packetsQueue))
+                continue;
             mySleep(difs);
             //TODO: contention window
             if (!isChannelFree(handle))
                 continue;
-            // temp2(handle);
-            temp(handle);
-            continue;
-            // if (sendPacket(handle))
-            //     continue;
-
-            state = WAIT_CTS;
+            if (sendPacket(handle))
+                continue;
         }
 
         if (!isForMe(packet))
@@ -314,78 +253,27 @@ int loop(pcap_t *handle)
             continue;
         }
 
-        switch (state)
-        {
-            case CLEAR:
-                if (!isRTS(packet))
-                    continue;
-
-                mySleep(sifs);
-                if (!isChannelFree(handle))
-                    continue;
-                if (sendCTS(handle, packet))
-                    continue;
-                state = WAIT_DATA;
-                break;
-            case WAIT_CTS:
-                if (!isCTS(packet))
-                {
-                    state = CLEAR;
-                    break;
-                }
-            //TODO: mandare i dati
-                mySleep(sifs);
-                if (!isChannelFree(handle))
-                {
-                    state = CLEAR;
-                    continue;
-                }
-
-                if (sendPacket(handle))
-                {
-                    state = CLEAR;
-                    continue;
-                }
-                state = WAIT_ACK;
-
-                break;
-            case WAIT_DATA:
-                if (!isDATA(packet))
-                {
-                    state = CLEAR;
-                    break;
-                }
-            //TODO: mandare l'ack
-                mySleep(sifs);
-                if (!isChannelFree(handle))
-                {
-                    state = CLEAR;
-                    continue;
-                }
-                if (sendPacket(handle))
-                {
-                    state = CLEAR;
-                    continue;
-                }
-                state = CLEAR;
-
-                break;
-            case WAIT_ACK:
-                if (!isACK(packet))
-                {
-                    state = CLEAR;
-                    break;
-                }
-            //TODO: contrassegnare il messaggio come inviato
-                state = CLEAR;
-                break;
-        }
+        handlePacket(header, packet);
     }
-
+    return NULL;
+}
+int loopPcap(pcap_t *handle)
+{
+    if (pthread_create(&thread, NULL, loop, handle))
+    {
+        E_Print("Error while creating thread\n");
+        return EXIT_FAILURE;
+    }
     return EXIT_SUCCESS;
 }
 
-void cleanPcap(pcap_t *handle)
+int stopPcap()
 {
-    pcap_close(handle);
+    looping = false;
+    if (pthread_join(thread, NULL))
+    {
+        E_Print("Error while joining thread\n");
+        return EXIT_FAILURE;
+    }
+    return EXIT_SUCCESS;
 }

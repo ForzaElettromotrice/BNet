@@ -110,8 +110,8 @@ int popQueue(Queue_t *queue, void **val, size_t *size)
     Node_t *node = queue->head;
     if (queue->head == queue->tail)
     {
-        queue->head == NULL;
-        queue->tail == NULL;
+        queue->head = NULL;
+        queue->tail = NULL;
     } else
     {
         queue->head = node->next;
@@ -120,7 +120,10 @@ int popQueue(Queue_t *queue, void **val, size_t *size)
     if (val != NULL)
         *val = node->val;
     else
+    {
         free(node->val);
+    }
+
 
     if (size != NULL)
         *size = node->size;

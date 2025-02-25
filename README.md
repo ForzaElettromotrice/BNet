@@ -1,5 +1,6 @@
 # Radiotap
 
+(Tutto lavoro inutile eheh, che palle)
 Il nostro radiotap è costruito così:
 
 ### Header
@@ -16,8 +17,8 @@ Il nostro radiotap è costruito così:
 * **Rate** &rarr; `0x82` _(misurato in 500 Kbps) (1 byte)_
 * **Channel**:
     * Frequenza &rarr; `da decidere` _(misurato in MHz) (2 byte) (Little Endian)_
-    * Flags &rarr; `0x00c0` _(2 byte) (little endian)_
-        * `0x0040` OFDM channel
+    * Flags &rarr; `0x00a0` _(2 byte) (little endian)_
+        * `0x0020` CCK channel
         * `0x0080` 2 GHz spectrum channel
 * **dBm TX power** &rarr; `0x14` _(misurato in dBm) (max 30 dBm) (1 byte)_
 * **Antenna** &rarr; `0x01` _(indice antenna) (1 byte)_
@@ -36,8 +37,8 @@ Il nostro radiotap è costruito così:
         * `0x20` STBC known
         * `0x40` Ness known (Number of extension spatial streams)
         * `0x00` Ness data - bit 1 (MSB) of Number of extension spatial streams
-    * **Flags** &rarr; `0x31` _(1 byte)_
-        * `0x01` bandwidth:
+    * **Flags** &rarr; `0x30` _(1 byte)_
+        * `0x00` bandwidth:
             * `0x00` &rarr; 20
             * `0x01` &rarr; 40
             * `0x10` &rarr; 20L

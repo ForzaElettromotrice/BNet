@@ -39,6 +39,10 @@ const uint32_t crctable[] = {
     0xb3667a2eL, 0xc4614ab8L, 0x5d681b02L, 0x2a6f2b94L, 0xb40bbe37L, 0xc30c8ea1L, 0x5a05df1bL, 0x2d02ef8dL
 };
 
+const uint8_t myAddr[] = {
+    0x24, 0xec, 0x99, 0x95, 0x45, 0x81
+};
+
 void mySleep(const int usec)
 {
     struct timespec start;
@@ -55,38 +59,44 @@ void mySleep(const int usec)
 
 bool isForMe(const u_char *bytes)
 {
-    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    const u_char *receiver = bytes + radiotap_len + 4;
-    return strcmp((const char *) receiver, MY_ADDR) == 0;
+    const uint16_t radiotapLen = bytes[2] + bytes[3] * 16;
+    const u_char *receiver = bytes + radiotapLen + 4;
+    return strcmp((const char *) receiver, MY_ADDR) == 0 || strcmp((const char *) receiver, BROADCAST) == 0;
+}
+bool isBeacon(const u_char *bytes)
+{
+    const uint16_t radiotapLen = bytes[2] + bytes[3] * 16;
+    const uint8_t frameType = bytes[radiotapLen];
+    return frameType == BEACON;
 }
 bool isRTS(const u_char *bytes)
 {
-    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    const uint8_t frameType = bytes[radiotap_len];
+    const uint16_t radiotapLen = bytes[2] + bytes[3] * 16;
+    const uint8_t frameType = bytes[radiotapLen];
     return frameType == RTS;
 }
 bool isCTS(const u_char *bytes)
 {
-    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    const uint8_t frameType = bytes[radiotap_len];
+    const uint16_t radiotapLen = bytes[2] + bytes[3] * 16;
+    const uint8_t frameType = bytes[radiotapLen];
     return frameType == CTS;
 }
 bool isDATA(const u_char *bytes)
 {
-    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    const uint8_t frameType = bytes[radiotap_len];
+    const uint16_t radiotapLen = bytes[2] + bytes[3] * 16;
+    const uint8_t frameType = bytes[radiotapLen];
     return frameType == DATA;
 }
 bool isACK(const u_char *bytes)
 {
-    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    const uint8_t frameType = bytes[radiotap_len];
+    const uint16_t radiotapLen = bytes[2] + bytes[3] * 16;
+    const uint8_t frameType = bytes[radiotapLen];
     return frameType == ACK;
 }
 bool isBLOCKACK(const u_char *bytes)
 {
-    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    const uint8_t frameType = bytes[radiotap_len];
+    const uint16_t radiotapLen = bytes[2] + bytes[3] * 16;
+    const uint8_t frameType = bytes[radiotapLen];
     return frameType == BLOCKACK;
 }
 bool isChannelFree(pcap_t *handle)
@@ -99,19 +109,59 @@ bool isChannelFree(pcap_t *handle)
 
 uint8_t getFrameType(const u_char *bytes)
 {
-    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    return bytes[radiotap_len];
+    const uint16_t radiotapLen = bytes[2] + bytes[3] * 16;
+    return bytes[radiotapLen];
 }
 uint16_t getDuration(const u_char *bytes)
 {
-    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    return bytes[radiotap_len + 2] + bytes[radiotap_len + 3] * 16;
+    const uint16_t radiotapLen = bytes[2] + bytes[3] * 16;
+    return bytes[radiotapLen + 2] + bytes[radiotapLen + 3] * 16;
 }
 
 void getTransmitter(const u_char *bytes, u_char address[6])
 {
-    const uint16_t radiotap_len = bytes[2] + bytes[3] * 16;
-    memcpy(address, bytes + radiotap_len + 10, 6);
+    const uint16_t radiotapLen = bytes[2] + bytes[3] * 16;
+    memcpy(address, bytes + radiotapLen + 10, 6);
+}
+const char *getBeaconSSID(const u_char *bytes, const size_t packetSize, int8_t *tagSize)
+{
+    const uint16_t radiotapLen = bytes[2] + bytes[3] * 16;
+    const u_char *tags = bytes + radiotapLen + 36; //36 è la somma della dimensione di tutti i campi precedenti
+    size_t pointer = radiotapLen + 36;
+    while (pointer <= packetSize - 4)
+    {
+        const int8_t tagLen = (int8_t) tags[1];
+        if (tags[0] != 0x00)
+        {
+            pointer += tagLen + 2;
+            continue;
+        }
+
+        *tagSize = tagLen;
+        return (char *) tags + 2;
+    }
+    *tagSize = 0;
+    return NULL;
+}
+const u_char *getBeaconData(const u_char *bytes, const size_t packetSize, int8_t *tagSize)
+{
+    const uint16_t radiotapLen = bytes[2] + bytes[3] * 16;
+    const u_char *tags = bytes + radiotapLen + 36; //36 è la somma della dimensione di tutti i campi precedenti
+    size_t pointer = radiotapLen + 36;
+    while (pointer <= packetSize - 4)
+    {
+        const int8_t tagLen = (int8_t) tags[1];
+        if (tags[0] != 0xdd)
+        {
+            pointer += tagLen + 2;
+            continue;
+        }
+
+        *tagSize = tagLen;
+        return tags + 2;
+    }
+    *tagSize = 0;
+    return NULL;
 }
 
 
@@ -129,16 +179,34 @@ void buildRadiotap(MyRadiotap_t *radiotap)
 {
     radiotap->version = 0x00;
     radiotap->pad = 0x00;
-    radiotap->len = 0x0015;
-    radiotap->fields = 0x20088c0e;
+    radiotap->len = 0x0009;
+    radiotap->fields = 0x00000002;
     radiotap->flags = 0x10;
-    radiotap->rate = 0x82;
-    radiotap->frequency = 0x0985; //TODO
-    radiotap->channelFlags = 0x00c0;
-    radiotap->power = 0x14;
-    radiotap->antenna = 0x01;
-    radiotap->txFlags = 0x0038;
-    radiotap->MCSKnown = 0x7f;
-    radiotap->MCSFlags = 0x31;
-    radiotap->MCS = 0x07;
+}
+void buildBeacon(MyBeacon_t *beacon, const u_char *data, size_t size)
+{
+    if (size > 251)
+        size = 251;
+
+    beacon->fc = BEACON;
+    beacon->flags = 0x00; // da rivedere
+    beacon->duration = 0x0000;
+    memset(beacon->raddr, 0xff, 6);
+    memcpy(beacon->taddr, myAddr, 6);
+    memcpy(beacon->bssid, myAddr, 6);
+    beacon->seq = 0x0000; // da rivedere
+    beacon->timestamp = 0x0011223344556677; // da rivedere
+    beacon->interval = 0x0064;
+    beacon->capabilities = 0x0002;
+    beacon->ssid[0] = 0x00;
+    beacon->ssid[1] = 0x07;
+    memcpy(&beacon->ssid[2], "AutoNet", 7);
+    beacon->vendor[0] = 0xdd;
+    beacon->vendor[1] = 0xff;
+    beacon->vendor[2] = 0x00; //OUI da rivedere
+    beacon->vendor[3] = 0x11;
+    beacon->vendor[4] = 0x22;
+    beacon->vendor[5] = 0x01; //OUI type da rivedere
+    memcpy(&beacon->vendor[6], data, size);
+    beacon->checksum = crc32((const u_char *) beacon, sizeof(MyBeacon_t) - 4);
 }

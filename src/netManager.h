@@ -5,30 +5,28 @@
 #include <stdbool.h>
 #include <string.h>
 #include <pcap.h>
+#include <pthread.h>
 
 #include "logger.h"
 #include "parameters.h"
 #include "queue.h"
 #include "netUtils.h"
 
-#define RTS_LENGTH 20
-#define CTS_LENGTH 14
-
-typedef enum State
+typedef enum PacketType
 {
-    CLEAR,
-    WAIT_CTS,
-    WAIT_DATA,
-    WAIT_ACK
-} State_t;
-
-
-uint16_t findLargestSIFS(pcap_t *handle);
+    Beacon,
+    Data
+} PacketType_t;
 
 int initPcap();
+void cleanPcap(pcap_t *handle);
+
 int createHandle(pcap_t **handle);
 int setHandleOptions(pcap_t *handle);
+void setCallback(void (*callback)(PacketType_t, size_t, u_char *));
 int activateHandle(pcap_t *handle);
-int loop(pcap_t *handle);
 
-void cleanPcap(pcap_t *handle);
+void addPacket(PacketType_t type, const void *data, size_t len);
+
+int loopPcap(pcap_t *handle);
+int stopPcap();
