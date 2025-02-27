@@ -68,8 +68,8 @@ uint8_t getFrameType(const u_char *bytes);
 uint16_t getDuration(const u_char *bytes);
 
 void getTransmitter(const u_char *bytes, u_char address[6]);
-const char *getBeaconSSID(const u_char *bytes, size_t packetSize, int8_t *tagSize);
-const u_char *getBeaconData(const u_char *bytes, size_t packetSize, int8_t *tagSize);
+const char *getBeaconSSID(const u_char *bytes, size_t packetSize, uint8_t *tagSize);
+const u_char *getBeaconData(const u_char *bytes, size_t packetSize, uint8_t *tagSize);
 
 
 uint32_t crc32(const u_char *data, size_t size);

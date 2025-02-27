@@ -37,14 +37,20 @@ void handlePacket(const struct pcap_pkthdr *header, const u_char *packet)
         return;
     if (isBeacon(packet))
     {
-        int8_t tagLen;
+        uint8_t tagLen;
         const char *ssid = getBeaconSSID(packet, header->len, &tagLen);
-        if (tagLen != 7 && strcmp(ssid, "AutoNet") != 0)
+
+        if (tagLen != 7 || strncmp(ssid, "AutoNet", 7) != 0)
             return;
 
         const u_char *data = getBeaconData(packet, header->len, &tagLen);
-
+        //TODO: controllare se c'è
         u_char *finalData = malloc(tagLen * sizeof(u_char));
+        if (!finalData)
+        {
+            E_Print("malloc: %s\n", strerror(errno));
+            return;
+        }
         memcpy(finalData, data, tagLen);
         cback(Beacon, tagLen, finalData);
     }
@@ -201,10 +207,21 @@ int activateHandle(pcap_t *handle)
 
 void addPacket(const PacketType_t type, const void *data, const size_t len)
 {
+    MyRadiotap_t radiotap;
+    buildRadiotap(&radiotap);
+
     switch (type)
     {
         case Beacon:
-            pushQueue(data, len, packetsQueue);
+
+            MyBeacon_t beacon;
+            u_char packet[sizeof(MyRadiotap_t) + sizeof(MyBeacon_t)];
+
+            buildBeacon(&beacon, data, len);
+            memcpy(packet, &radiotap, sizeof(MyRadiotap_t));
+            memcpy(packet + sizeof(MyRadiotap_t), &beacon, sizeof(MyBeacon_t));
+
+            pushQueue(packet, sizeof(packet), packetsQueue);
             break;
         case Data:
             break;

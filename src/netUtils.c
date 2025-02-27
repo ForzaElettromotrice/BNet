@@ -61,7 +61,14 @@ bool isForMe(const u_char *bytes)
 {
     const uint16_t radiotapLen = bytes[2] + bytes[3] * 16;
     const u_char *receiver = bytes + radiotapLen + 4;
-    return strcmp((const char *) receiver, MY_ADDR) == 0 || strcmp((const char *) receiver, BROADCAST) == 0;
+
+    for (int i = 0; i < 6; ++i)
+    {
+        if (receiver[i] != myAddr[i] && receiver[i] != 0xff)
+            return false;
+    }
+
+    return true;
 }
 bool isBeacon(const u_char *bytes)
 {
@@ -123,43 +130,48 @@ void getTransmitter(const u_char *bytes, u_char address[6])
     const uint16_t radiotapLen = bytes[2] + bytes[3] * 16;
     memcpy(address, bytes + radiotapLen + 10, 6);
 }
-const char *getBeaconSSID(const u_char *bytes, const size_t packetSize, int8_t *tagSize)
+const char *getBeaconSSID(const u_char *bytes, const size_t packetSize, uint8_t *tagSize)
 {
     const uint16_t radiotapLen = bytes[2] + bytes[3] * 16;
-    const u_char *tags = bytes + radiotapLen + 36; //36 è la somma della dimensione di tutti i campi precedenti
+
     size_t pointer = radiotapLen + 36;
-    while (pointer <= packetSize - 4)
+
+    while (pointer < packetSize - 4)
     {
-        const int8_t tagLen = (int8_t) tags[1];
-        if (tags[0] != 0x00)
+        const int8_t tagLen = (int8_t) bytes[pointer + 1];
+        if (bytes[pointer] != 0x00)
         {
             pointer += tagLen + 2;
             continue;
         }
 
         *tagSize = tagLen;
-        return (char *) tags + 2;
+        return (char *) &bytes[pointer + 2];
     }
+
     *tagSize = 0;
     return NULL;
 }
-const u_char *getBeaconData(const u_char *bytes, const size_t packetSize, int8_t *tagSize)
+const u_char *getBeaconData(const u_char *bytes, const size_t packetSize, uint8_t *tagSize)
 {
+    //TODO: unire alla funzione sopra
     const uint16_t radiotapLen = bytes[2] + bytes[3] * 16;
-    const u_char *tags = bytes + radiotapLen + 36; //36 è la somma della dimensione di tutti i campi precedenti
+
     size_t pointer = radiotapLen + 36;
-    while (pointer <= packetSize - 4)
+
+    while (pointer < packetSize - 4)
     {
-        const int8_t tagLen = (int8_t) tags[1];
-        if (tags[0] != 0xdd)
+        const uint8_t tagLen = (int8_t) bytes[pointer + 1];
+        if (bytes[pointer] != 0xdd)
         {
             pointer += tagLen + 2;
             continue;
         }
 
         *tagSize = tagLen;
-        return tags + 2;
+        return &bytes[pointer + 2];
     }
+
     *tagSize = 0;
     return NULL;
 }
@@ -185,6 +197,8 @@ void buildRadiotap(MyRadiotap_t *radiotap)
 }
 void buildBeacon(MyBeacon_t *beacon, const u_char *data, size_t size)
 {
+    //TODO: se il dato è piu piccolo, scrivere 0 in tutta la memoria restante
+    //TODO: se il dato è piu piccolo volendo si potrebbe fare il pacchetto più piccolo
     if (size > 251)
         size = 251;
 
