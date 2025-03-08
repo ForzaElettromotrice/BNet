@@ -25,7 +25,7 @@ set_target_properties(BNetShared PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib
         OUTPUT_NAME BNet)
 target_include_directories(
-        BNetShared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/BNet
+        BNetShared PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/BNet
         BNetShared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
 
 
@@ -40,7 +40,7 @@ target_link_libraries(BNetStatic PUBLIC ${PCAP_LIBRARY})
 target_link_libraries(BNetStatic PRIVATE Threads::Threads)
 
 target_include_directories(
-        BNetStatic PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/BNet
+        BNetStatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/BNet
         BNetStatic PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
 
 set_target_properties(BNetStatic PROPERTIES
