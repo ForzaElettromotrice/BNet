@@ -1,6 +1,7 @@
 #include "netManager.h"
 #include "logger.h"
 #include "queue.h"
+#include "parameters.h"
 
 uint16_t sifs = 0;
 uint16_t difs = 0;
