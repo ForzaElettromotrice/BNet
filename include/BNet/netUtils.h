@@ -12,7 +12,6 @@
 #include <time.h>
 #include <string.h>
 
-#include "logger.h"
 #include "parameters.h"
 
 #define RTS 0xb4

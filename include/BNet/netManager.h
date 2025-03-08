@@ -7,9 +7,7 @@
 #include <pcap.h>
 #include <pthread.h>
 
-#include "logger.h"
 #include "parameters.h"
-#include "queue.h"
 #include "netUtils.h"
 
 typedef enum PacketType
@@ -21,12 +19,11 @@ typedef enum PacketType
 int initPcap();
 void cleanPcap(pcap_t *handle);
 
-int createHandle(pcap_t **handle);
-int setHandleOptions(pcap_t *handle);
+int createHandle(const char *interfaceName);
 void setCallback(void (*callback)(PacketType_t, size_t, u_char *));
-int activateHandle(pcap_t *handle);
+int activateHandle();
 
 void addPacket(PacketType_t type, const void *data, size_t len);
 
-int loopPcap(pcap_t *handle);
+int loopPcap();
 int stopPcap();

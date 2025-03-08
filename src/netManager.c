@@ -1,4 +1,6 @@
 #include "netManager.h"
+#include "logger.h"
+#include "queue.h"
 
 uint16_t sifs = 0;
 uint16_t difs = 0;
@@ -8,6 +10,8 @@ void (*cback)(PacketType_t, size_t, u_char *);
 
 volatile bool looping = false;
 pthread_t thread;
+
+pcap_t *handle;
 
 
 int sendPacket(pcap_t *handle)
@@ -152,33 +156,34 @@ int initPcap()
 void cleanPcap(pcap_t *handle)
 {
     pcap_close(handle);
+    cleanQueue(packetsQueue);
+    cback = NULL;
 }
 
-
-int createHandle(pcap_t **handle)
+int setHandleOptions()
 {
-    char errbuf[PCAP_ERRBUF_SIZE];
-
-    *handle = pcap_create("wlan1", errbuf);
-    if (!*handle)
-    {
-        E_Print("pcap_create: %s\n", errbuf);
-        return EXIT_FAILURE;
-    }
-
-    return EXIT_SUCCESS;
-}
-int setHandleOptions(pcap_t *handle)
-{
-    // TODO: delay (packet buffer timeout) fra una lettura di un pacchetto e l'altra, non so se metterlo
-    // TODO: in caso si può mettere la immediate mode
     const int result = pcap_set_immediate_mode(handle, 1);
     if (result != 0)
     {
         E_Print("Can't set immediate mode! %d\n", result);
         return EXIT_FAILURE;
     }
-    // TODO: stabilire un buffer size, non sono sicuro serva con la immediate mode
+
+    return EXIT_SUCCESS;
+}
+int createHandle(const char *interfaceName)
+{
+    char errbuf[PCAP_ERRBUF_SIZE];
+
+    handle = pcap_create(interfaceName, errbuf);
+    if (!handle)
+    {
+        E_Print("pcap_create: %s\n", errbuf);
+        return EXIT_FAILURE;
+    }
+
+    if (setHandleOptions())
+        return EXIT_FAILURE;
 
     return EXIT_SUCCESS;
 }
@@ -186,7 +191,7 @@ void setCallback(void (*callback)(PacketType_t, size_t, u_char *))
 {
     cback = callback;
 }
-int activateHandle(pcap_t *handle)
+int activateHandle()
 {
     const int result = pcap_activate(handle);
     if (result > 0)
@@ -228,9 +233,8 @@ void addPacket(const PacketType_t type, const void *data, const size_t len)
     }
 }
 
-void *loop(void *arg)
+void *loop()
 {
-    pcap_t *handle = arg;
     struct pcap_pkthdr *header;
     const u_char *packet;
 
@@ -245,7 +249,7 @@ void *loop(void *arg)
     if (pcap_setnonblock(handle, 1, errbuf))
     {
         E_Print("Setnonblock: %s\n", errbuf);
-        return NULL;
+        return (void *) EXIT_FAILURE;
     }
 
     looping = true;
@@ -272,11 +276,11 @@ void *loop(void *arg)
 
         handlePacket(header, packet);
     }
-    return NULL;
+    return (void *) EXIT_SUCCESS;
 }
-int loopPcap(pcap_t *handle)
+int loopPcap()
 {
-    if (pthread_create(&thread, NULL, loop, handle))
+    if (pthread_create(&thread, NULL, loop, NULL))
     {
         E_Print("Error while creating thread\n");
         return EXIT_FAILURE;
@@ -287,10 +291,15 @@ int loopPcap(pcap_t *handle)
 int stopPcap()
 {
     looping = false;
-    if (pthread_join(thread, NULL))
+    void *out;
+    if (pthread_join(thread, &out))
     {
         E_Print("Error while joining thread\n");
         return EXIT_FAILURE;
     }
+
+    if (*(int *) out == EXIT_FAILURE)
+        E_Print("loop exited with code %d\n", EXIT_FAILURE);
+
     return EXIT_SUCCESS;
 }
