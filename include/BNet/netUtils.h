@@ -12,8 +12,6 @@
 #include <time.h>
 #include <string.h>
 
-#include "parameters.h"
-
 #define RTS 0xb4
 #define CTS 0xc4
 #define ACK 0xd4
