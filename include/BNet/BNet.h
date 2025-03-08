@@ -6,4 +6,3 @@
 
 #include "netManager.h"
 #include "netUtils.h"
-#include "parameters.h"
