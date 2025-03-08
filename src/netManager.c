@@ -153,7 +153,7 @@ int initPcap()
 
     return EXIT_SUCCESS;
 }
-void cleanPcap(pcap_t *handle)
+void cleanPcap()
 {
     pcap_close(handle);
     cleanQueue(packetsQueue);

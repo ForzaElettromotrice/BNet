@@ -8,9 +8,6 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 add_compile_definitions(Debug)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/BNet)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/include)
-
 find_library(PCAP_LIBRARY pcap REQUIRED)
 find_package(Threads REQUIRED)
 
@@ -27,6 +24,9 @@ target_link_libraries(BNetShared PRIVATE Threads::Threads)
 set_target_properties(BNetShared PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib
         OUTPUT_NAME BNet)
+target_include_directories(
+        BNetShared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/BNet
+        BNetShared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
 
 
 add_library(BNetStatic STATIC
@@ -39,6 +39,9 @@ add_library(BNetStatic STATIC
 target_link_libraries(BNetStatic PUBLIC ${PCAP_LIBRARY})
 target_link_libraries(BNetStatic PRIVATE Threads::Threads)
 
+target_include_directories(
+        BNetStatic PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/BNet
+        BNetStatic PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
 
 set_target_properties(BNetStatic PROPERTIES
         ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib
