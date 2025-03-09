@@ -7,6 +7,7 @@ set(CMAKE_C_STANDARD 17)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
 add_compile_definitions(Debug)
+add_definitions(-DSETMONITOR_SCRIPT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/setMonitor.sh")
 
 find_library(PCAP_LIBRARY pcap REQUIRED)
 find_package(Threads REQUIRED)

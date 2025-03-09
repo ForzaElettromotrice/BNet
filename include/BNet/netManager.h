@@ -6,6 +6,8 @@
 #include <string.h>
 #include <pcap.h>
 #include <pthread.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 #include "netUtils.h"
 

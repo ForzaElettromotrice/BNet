@@ -134,6 +134,36 @@ uint16_t findLargestSIFS(pcap_t *handle)
     return mean;
 }
 
+int setMonitor(const char *interfaceName)
+{
+    const pid_t pid = fork();
+    if (pid < 0)
+    {
+        E_Print("fork: %s\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
+    if (pid == 0)
+    {
+        execlp("sh", "sh", SETMONITOR_SCRIPT_PATH, interfaceName, (char *) NULL);
+        E_Print("execlp: %s\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
+    int status;
+    if (waitpid(pid, &status, 0) == -1)
+    {
+        E_Print("waitpid: %s\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
+    if (!(WIFEXITED(status)))
+        return EXIT_FAILURE;
+
+    const int exit_code = WEXITSTATUS(status);
+    if (exit_code != 0)
+        return EXIT_FAILURE;
+
+    return EXIT_SUCCESS;
+}
+
 
 int initPcap()
 {
@@ -182,6 +212,9 @@ int createHandle(const char *interfaceName)
         E_Print("pcap_create: %s\n", errbuf);
         return EXIT_FAILURE;
     }
+
+    if (setMonitor(interfaceName))
+        return EXIT_FAILURE;
 
     if (setHandleOptions())
         return EXIT_FAILURE;
