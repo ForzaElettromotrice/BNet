@@ -24,8 +24,6 @@ int sendPacket(pcap_t *handle)
         E_Print("Error while sending packet!\n");
         return EXIT_FAILURE;
     }
-
-    D_Print("Sending packet...\n");
     const int result = pcap_inject(handle, packet, size);
     if (result == PCAP_ERROR)
     {
@@ -299,8 +297,8 @@ void *loop()
             //TODO: contention window
             if (!isChannelFree(handle))
                 continue;
-            if (sendPacket(handle))
-                continue;
+            sendPacket(handle);
+            continue;
         }
 
         if (!isForMe(packet))
