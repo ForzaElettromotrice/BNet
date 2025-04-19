@@ -21,9 +21,9 @@ int mySend(const int n)
     {
         addPacket(BEACON, &i, sizeof(int));
         D_Print("Sent packet %d of %d\n", i + 1, n);
+        mySleep(10000);
     }
 
-    mySleep(4000000);
     stopPcap();
 
     return EXIT_SUCCESS;
