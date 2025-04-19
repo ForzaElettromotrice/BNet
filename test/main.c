@@ -8,9 +8,9 @@ volatile int counter = 0;
 
 void callback(PacketType_t type, size_t size, u_char *data)
 {
-    int number = (data[0] << 24) |
-                 (data[1] << 16) |
-                 (data[2] << 8) |
+    int number = (data[6] << 24) |
+                 (data[5] << 16) |
+                 (data[4] << 8) |
                  (data[3]);
     printf("Received packet number %d\n", number);
     counter++;
