@@ -4,7 +4,7 @@
 
 #include "main.h"
 
-int counter = 0;
+volatile int counter = 0;
 
 void callback(PacketType_t type, size_t size, u_char *data)
 {
@@ -16,11 +16,16 @@ void callback(PacketType_t type, size_t size, u_char *data)
 
 int mySend(const int n)
 {
+    loopPcap();
     for (int i = 0; i < n; ++i)
     {
         addPacket(BEACON, &i, sizeof(int));
         D_Print("Sent packet %d of %d\n", i + 1, n);
     }
+
+    mySleep(4000000);
+    stopPcap();
+
     return EXIT_SUCCESS;
 }
 int myRecv(const int n)
