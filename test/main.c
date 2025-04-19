@@ -8,7 +8,7 @@ int counter = 0;
 
 void callback(PacketType_t type, size_t size, u_char *data)
 {
-    const int number = (int) data;
+    const int number = *(int *) data;
     printf("Received packet number %d\n", number);
     counter++;
 }
