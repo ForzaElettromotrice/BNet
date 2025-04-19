@@ -19,11 +19,9 @@ int mySend(const int n)
     loopPcap();
     for (int i = 0; i < n; ++i)
     {
-        addPacket(BEACON, &i, sizeof(int));
+        addPacket(Beacon, &i, sizeof(int));
         D_Print("Sent packet %d of %d\n", i + 1, n);
-        mySleep(10000);
     }
-
     stopPcap();
 
     return EXIT_SUCCESS;
@@ -71,7 +69,7 @@ int main(const int argc, char *argv[])
 
     initPcap();
     setCallback(callback);
-    createHandle("wlan1");
+    createHandle("wlp0s20f0u13");
     activateHandle();
 
     if (op == SEND)
