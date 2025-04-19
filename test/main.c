@@ -8,7 +8,8 @@ volatile int counter = 0;
 
 void callback(PacketType_t type, size_t size, u_char *data)
 {
-    const int number = *(int *) data;
+    int number;
+    memcpy(&number, data + 3, sizeof(int));
     printf("Received packet number %d\n", number);
     counter++;
 }
