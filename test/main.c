@@ -69,7 +69,7 @@ int main(const int argc, char *argv[])
 
     initPcap();
     setCallback(callback);
-    createHandle("wlp0s20f0u13");
+    createHandle("wlan1");
     activateHandle();
 
     if (op == SEND)
