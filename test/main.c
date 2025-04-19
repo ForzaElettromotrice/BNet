@@ -37,9 +37,9 @@ int myRecv(const int n)
 
 int main(const int argc, char *argv[])
 {
-    if (argc != 2 && argc != 3)
+    if (argc != 3)
     {
-        E_Print("Invalid arguments!\n" YELLOW "Usage:" RESET " BTest {recv/send} {n}");
+        E_Print("Invalid arguments!\n" YELLOW "Usage:" RESET " BTest {recv/send} {n}\n");
         return EXIT_FAILURE;
     }
 
@@ -52,7 +52,7 @@ int main(const int argc, char *argv[])
         op = SEND;
     } else
     {
-        E_Print("Invalid arguments!\n" YELLOW "Usage:" RESET " BTest {recv/send} {n}");
+        E_Print("Invalid arguments!\n" YELLOW "Usage:" RESET " BTest {recv/send} {n}\n");
         return EXIT_FAILURE;
     }
 
@@ -60,7 +60,7 @@ int main(const int argc, char *argv[])
     const int64_t n = strtol(argv[2], &end, 10);
     if (*argv[2] == '\0' || *end != '\0')
     {
-        E_Print("Invalid arguments!\n" YELLOW "Usage:" RESET " BTest {recv/send} {n}");
+        E_Print("Invalid arguments!\n" YELLOW "Usage:" RESET " BTest {recv/send} {n}\n");
         return EXIT_FAILURE;
     }
 
