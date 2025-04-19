@@ -254,7 +254,7 @@ void addPacket(const PacketType_t type, const void *data, const size_t len)
     {
         case Beacon:
 
-            MyBeacon_t beacon;
+            MyBeacon_t beacon = {};
             u_char packet[sizeof(MyRadiotap_t) + sizeof(MyBeacon_t)];
 
             buildBeacon(&beacon, data, len);
