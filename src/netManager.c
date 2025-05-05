@@ -7,7 +7,8 @@ uint16_t sifs = 0;
 uint16_t difs = 0;
 
 Queue_t *packetsQueue;
-void (*cback)(PacketType_t, size_t, u_char *);
+void (*cback)(PacketType_t, size_t, u_char *, void *);
+void *usrData;
 
 volatile bool looping = false;
 pthread_t thread;
@@ -56,7 +57,7 @@ void handlePacket(const struct pcap_pkthdr *header, const u_char *packet)
             return;
         }
         memcpy(finalData, data, tagLen);
-        cback(Beacon, tagLen, finalData);
+        cback(Beacon, tagLen, finalData, usrData);
     }
 }
 
@@ -220,9 +221,10 @@ int createHandle(const char *interfaceName)
 
     return EXIT_SUCCESS;
 }
-void setCallback(void (*callback)(PacketType_t, size_t, u_char *))
+void setCallback(void (*callback)(PacketType_t, size_t, u_char *, void *), void *userData)
 {
     cback = callback;
+    usrData = userData;
 }
 int activateHandle()
 {
@@ -335,4 +337,9 @@ int stopPcap()
         E_Print("loop exited with code %d\n", EXIT_FAILURE);
 
     return EXIT_SUCCESS;
+}
+
+bool isQueueEmpty()
+{
+    return isEmpty(packetsQueue);
 }
