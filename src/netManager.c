@@ -333,7 +333,7 @@ int stopPcap()
         return EXIT_FAILURE;
     }
 
-    if ((int) out == EXIT_FAILURE)
+    if ((size_t) out == EXIT_FAILURE)
         E_Print("loop exited with code %d\n", EXIT_FAILURE);
 
     return EXIT_SUCCESS;
