@@ -43,7 +43,7 @@ const uint8_t myAddr[] = {
     0x24, 0xec, 0x99, 0x95, 0x45, 0x81
 };
 
-void mySleep(const int usec)
+void mySleep(const long usec)
 {
     struct timespec start;
     struct timespec end;
