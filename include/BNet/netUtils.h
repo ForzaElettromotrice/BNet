@@ -50,7 +50,7 @@ typedef struct MyBeacon
     uint32_t checksum;
 }__attribute__((__packed__)) MyBeacon_t;
 
-void mySleep(int usec);
+void mySleep(long usec);
 
 bool isForMe(const u_char *bytes);
 bool isBeacon(const u_char *bytes);
