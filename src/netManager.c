@@ -1,35 +1,98 @@
-#include "netManager.h"
-#include "logger.h"
-#include "queue.h"
-#include "parameters.h"
+//
+// Created by f3m on 28/05/25.
+//
 
-uint16_t sifs = 0;
-uint16_t difs = 0;
 
-Queue_t *packetsQueue;
-void (*cback)(PacketType_t, size_t, u_char *, void *);
-void *usrData;
+#include <pcap/pcap.h>
+#include <queue.h>
+#include <netManager.h>
+#include <logger.h>
+#include <netUtils.h>
+#include <structures.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <pthread.h>
 
-volatile bool looping = false;
-pthread_t thread;
+Context_t context = {};
 
-pcap_t *handle;
+int setMonitor(const char *interfaceName)
+{
+    const pid_t pid = fork();
+    if (pid < 0)
+    {
+        logE(context.err, "fork: %s\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
+    if (pid == 0)
+    {
+        execlp("sh", "sh", SETMONITOR_SCRIPT_PATH, interfaceName, (char *) NULL);
+        logE(context.err, "execlp: %s\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
+    int status;
+    if (waitpid(pid, &status, 0) == -1)
+    {
+        logE(context.err, "waitpid: %s\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
+    if (!(WIFEXITED(status)))
+        return EXIT_FAILURE;
 
+    const int exit_code = WEXITSTATUS(status);
+    if (exit_code != 0)
+        return EXIT_FAILURE;
+
+    return EXIT_SUCCESS;
+}
+int setHandleOptions()
+{
+    const int result = pcap_set_immediate_mode(context.handle, 1);
+    if (result != 0)
+    {
+        logE(context.err, "Can't set immediate mode! %d\n", result);
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+int setMyAddr(const char *interfaceName)
+{
+    char path[256];
+    u_char text[17];
+
+    sprintf(path, "/sys/class/net/%s/address", interfaceName);
+    FILE *f = fopen(path, "r");
+    if (!f)
+    {
+        logE(context.err, "fopen: %s\n", strerror(errno));
+        return EXIT_FAILURE;
+    }
+
+    fread(text, sizeof(u_char), 17, f);
+    fclose(f);
+
+    for (int i = 0; i < 17; i += 3)
+    {
+        const u_char t[] = {text[i], text[i + 1]};
+        context.myAddr[i / 3] = strtol(t, NULL, 16);
+    }
+    return EXIT_SUCCESS;
+}
 
 int sendPacket(pcap_t *handle)
 {
     size_t size;
     void *packet;
-    if (popQueue(packetsQueue, &packet, &size))
+    if (popQueue(context.packetsQueue, &packet, &size))
     {
-        E_Print("Error while sending packet!\n");
+        logE(context.err, "Error popping the queue!\n");
         return EXIT_FAILURE;
     }
     const int result = pcap_inject(handle, packet, size);
     if (result == PCAP_ERROR)
     {
-        pushFirstQueue(packet, size, packetsQueue);
-        E_Print("inject: %s\n", pcap_geterr(handle));
+        pushFirstQueue(packet, size, context.packetsQueue);
+        logE(context.err, "inject: %s\n", pcap_geterr(handle));
         return EXIT_FAILURE;
     }
 
@@ -38,7 +101,7 @@ int sendPacket(pcap_t *handle)
 }
 void handlePacket(const struct pcap_pkthdr *header, const u_char *packet)
 {
-    if (cback == NULL)
+    if (context.callback == NULL)
         return;
     if (isBeacon(packet))
     {
@@ -53,163 +116,58 @@ void handlePacket(const struct pcap_pkthdr *header, const u_char *packet)
         u_char *finalData = malloc(tagLen * sizeof(u_char));
         if (!finalData)
         {
-            E_Print("malloc: %s\n", strerror(errno));
+            logE(context.err, "malloc: %s\n", strerror(errno));
             return;
         }
         memcpy(finalData, data, tagLen);
-        cback(Beacon, tagLen, finalData, usrData);
+        context.callback(Beacon, tagLen, finalData, context.usrData);
     }
 }
 
-
-uint16_t findSIFS(pcap_t *handle)
-{
-    struct pcap_pkthdr *header;
-    const u_char *packet;
-
-    char errbuf[PCAP_ERRBUF_SIZE];
-    if (pcap_setnonblock(handle, 1, errbuf))
-    {
-        E_Print("Setnonblock: %s\n", errbuf);
-        return EXIT_FAILURE;
-    }
-
-    bool rts = false;
-    struct timeval rtsTimestamp = {};
-    struct timeval ctsTimestamp = {};
-
-    struct timespec start = {};
-    struct timespec end = {};
-
-    clock_gettime(CLOCK_MONOTONIC, &start);
-    for (int i = 0; i < 20000; ++i)
-    {
-        const int result = pcap_next_ex(handle, &header, &packet);
-        if (result == 0)
-        {
-            clock_gettime(CLOCK_MONOTONIC, &end);
-            if (end.tv_sec - start.tv_sec >= DIAGNOSTIC_TIMEOUT)
-                return -1;
-            continue;
-        }
-        if (result != 1)
-            return -1;
-        if (!rts)
-        {
-            rts = isRTS(packet);
-            if (rts)
-                memcpy(&rtsTimestamp, &header->ts, sizeof(struct timeval));
-            continue;
-        }
-        if (isCTS(packet))
-        {
-            memcpy(&ctsTimestamp, &header->ts, sizeof(struct timeval));
-            break;
-        }
-        rts = false;
-    }
-
-    const long s = rtsTimestamp.tv_sec * 1000000L + rtsTimestamp.tv_usec;
-    const long e = ctsTimestamp.tv_sec * 1000000L + ctsTimestamp.tv_usec;
-
-    return e - s;
-}
-uint16_t findLargestSIFS(pcap_t *handle)
-{
-    //TODO: migliorare questa funzione, mettere un limite temporale nel quale se non trova dati lo decide di suo
-    //TODO: e inoltre va migliorata la logica secondo cui viene calcolato sto tempo
-    int mean = 0;
-    for (int i = 0; i < DIAGNOSTIC_LENGTH; ++i)
-    {
-        const int val = findSIFS(handle);
-        if (val <= 0 || val >= 500)
-        {
-            i--;
-            continue;
-        }
-        mean += val;
-    }
-    mean /= DIAGNOSTIC_LENGTH;
-
-    return mean;
-}
-
-int setMonitor(const char *interfaceName)
-{
-    const pid_t pid = fork();
-    if (pid < 0)
-    {
-        E_Print("fork: %s\n", strerror(errno));
-        return EXIT_FAILURE;
-    }
-    if (pid == 0)
-    {
-        execlp("sh", "sh", SETMONITOR_SCRIPT_PATH, interfaceName, (char *) NULL);
-        E_Print("execlp: %s\n", strerror(errno));
-        return EXIT_FAILURE;
-    }
-    int status;
-    if (waitpid(pid, &status, 0) == -1)
-    {
-        E_Print("waitpid: %s\n", strerror(errno));
-        return EXIT_FAILURE;
-    }
-    if (!(WIFEXITED(status)))
-        return EXIT_FAILURE;
-
-    const int exit_code = WEXITSTATUS(status);
-    if (exit_code != 0)
-        return EXIT_FAILURE;
-
-    return EXIT_SUCCESS;
-}
-
-
-int initPcap()
+int initPcap(FILE *err, FILE *debug)
 {
     char errbuf[PCAP_ERRBUF_SIZE];
     if (pcap_init(PCAP_CHAR_ENC_LOCAL, errbuf))
     {
-        E_Print("Pcap init failed: %s\n", errbuf);
+        logE(err, "Pcap init failed: %s\n", errbuf);
         return EXIT_FAILURE;
     }
 
-    if (initQueue(&packetsQueue))
+    context.err = err;
+    context.debug = debug;
+
+    if (initQueue(&context.packetsQueue))
     {
-        E_Print("Error while initiating the packets queue\n");
+        logE(err, "Error while initiating the packets queue\n");
         return EXIT_FAILURE;
     }
 
-    cback = NULL;
+    context.sifs = 30;
+    context.difs = SLOT_TIME * 2 + context.sifs;
+    context.handle = NULL;
+    context.callback = NULL;
+    context.usrData = NULL;
+    context.thread = 0;
+    context.looping = false;
 
     return EXIT_SUCCESS;
 }
 void cleanPcap()
 {
-    pcap_close(handle);
-    cleanQueue(packetsQueue);
-    cback = NULL;
+    pcap_close(context.handle);
+    cleanQueue(context.packetsQueue);
+    if (context.looping)
+        stopPcap();
 }
 
-int setHandleOptions()
-{
-    const int result = pcap_set_immediate_mode(handle, 1);
-    if (result != 0)
-    {
-        E_Print("Can't set immediate mode! %d\n", result);
-        return EXIT_FAILURE;
-    }
-
-    return EXIT_SUCCESS;
-}
 int createHandle(const char *interfaceName)
 {
     char errbuf[PCAP_ERRBUF_SIZE];
 
-    handle = pcap_create(interfaceName, errbuf);
-    if (!handle)
+    context.handle = pcap_create(interfaceName, errbuf);
+    if (!context.handle)
     {
-        E_Print("pcap_create: %s\n", errbuf);
+        logE(context.err, "pcap_create: %s\n", errbuf);
         return EXIT_FAILURE;
     }
 
@@ -219,28 +177,31 @@ int createHandle(const char *interfaceName)
     if (setHandleOptions())
         return EXIT_FAILURE;
 
+    if (setMyAddr(interfaceName))
+        return EXIT_FAILURE;
+
     return EXIT_SUCCESS;
 }
-void setCallback(void (*callback)(PacketType_t, size_t, u_char *, void *), void *userData)
+void setCallback(void (*callback)(PacketType_t, size_t, const u_char *, void *), void *userData)
 {
-    cback = callback;
-    usrData = userData;
+    context.callback = callback;
+    context.usrData = userData;
 }
 int activateHandle()
 {
-    const int result = pcap_activate(handle);
+    const int result = pcap_activate(context.handle);
     if (result > 0)
     {
-        D_Print("Handle activated with Warning %d\n", result);
+        logD(context.debug, "Handle activated with Warning %d\n", result);
     } else if (result < 0)
     {
-        E_Print("Can't cativate handle! %d\n", result);
-        pcap_perror(handle, "activate");
+        logE(context.err, "Can't cativate handle! %d\n", result);
+        pcap_perror(context.handle, "activate");
         return EXIT_FAILURE;
     }
 
-    const int datalink = pcap_datalink(handle);
-    D_Print("The datalink for this handle is: %s\n", pcap_datalink_val_to_name(datalink));
+    const int datalink = pcap_datalink(context.handle);
+    logD(context.debug, "The datalink for this handle is: %s\n", pcap_datalink_val_to_name(datalink));
 
     return EXIT_SUCCESS;
 }
@@ -253,17 +214,17 @@ void addPacket(const PacketType_t type, const void *data, const size_t len)
     switch (type)
     {
         case Beacon:
-
             MyBeacon_t beacon = {};
             u_char packet[sizeof(MyRadiotap_t) + sizeof(MyBeacon_t)];
 
-            buildBeacon(&beacon, data, len);
+            buildBeacon(&beacon, data, len, context.myAddr);
             memcpy(packet, &radiotap, sizeof(MyRadiotap_t));
             memcpy(packet + sizeof(MyRadiotap_t), &beacon, sizeof(MyBeacon_t));
 
-            pushQueue(packet, sizeof(packet), packetsQueue);
+            pushQueue(packet, sizeof(packet), context.packetsQueue);
             break;
         case Data:
+            logE(context.err, "Data packet not implemented yet!\n");
             break;
     }
 }
@@ -274,36 +235,32 @@ void *loop()
     const u_char *packet;
 
     // sifs = findLargestSIFS(handle);
-    sifs = 30;
-    difs = SLOT_TIME * 2 + sifs;
-
-    D_Print("SIFS = %d\nDIFS = %d\n", sifs, difs);
+    logD(context.debug, "SIFS = %d\tDIFS = %d\n", context.sifs, context.difs);
 
     //Il non blocking è settato dentro al findSIFS
     char errbuf[PCAP_ERRBUF_SIZE];
-    if (pcap_setnonblock(handle, 1, errbuf))
+    if (pcap_setnonblock(context.handle, 1, errbuf))
     {
-        E_Print("Setnonblock: %s\n", errbuf);
+        logE(context.err, "Setnonblock: %s\n", errbuf);
         return (void *) EXIT_FAILURE;
     }
 
-    looping = true;
-    while (looping)
+    while (context.looping)
     {
-        const int result = pcap_next_ex(handle, &header, &packet);
+        const int result = pcap_next_ex(context.handle, &header, &packet);
         if (!result)
         {
-            if (isEmpty(packetsQueue))
+            if (isEmpty(context.packetsQueue))
                 continue;
-            mySleep(difs);
+            mySleep(context.difs);
             //TODO: contention window
-            if (!isChannelFree(handle))
+            if (!isChannelFree(context.handle))
                 continue;
-            sendPacket(handle);
+            sendPacket(context.handle);
             continue;
         }
 
-        if (!isForMe(packet))
+        if (!isForMe(packet, context.myAddr))
         {
             mySleep(getDuration(packet));
             continue;
@@ -313,33 +270,30 @@ void *loop()
     }
     return (void *) EXIT_SUCCESS;
 }
+
 int loopPcap()
 {
-    if (pthread_create(&thread, NULL, loop, NULL))
+    context.looping = true;
+    if (pthread_create(&context.thread, NULL, loop, NULL))
     {
-        E_Print("Error while creating thread\n");
+        context.looping = false;
+        logE(context.err, "Error while creating thread\n");
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;
 }
-
 int stopPcap()
 {
-    looping = false;
+    context.looping = false;
     void *out;
-    if (pthread_join(thread, &out))
+    if (pthread_join(context.thread, &out))
     {
-        E_Print("Error while joining thread\n");
+        logE(context.err, "Error while joining thread\n");
         return EXIT_FAILURE;
     }
 
     if ((size_t) out == EXIT_FAILURE)
-        E_Print("loop exited with code %d\n", EXIT_FAILURE);
+        logE(context.err, "loop exited with code %d\n", EXIT_FAILURE);
 
     return EXIT_SUCCESS;
-}
-
-bool isQueueEmpty()
-{
-    return isEmpty(packetsQueue);
 }

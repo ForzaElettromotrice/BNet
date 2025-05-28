@@ -28,8 +28,6 @@ find_package(Threads REQUIRED)
 
 add_library(BNet ${LIB_TYPE}
         src/netManager.c
-        src/logger.c
-        src/queue.c
         src/netUtils.c)
 
 target_link_libraries(BNet PUBLIC ${PCAP_LIBRARY} CUtils)
