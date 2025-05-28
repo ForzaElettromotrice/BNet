@@ -1,0 +1,3 @@
+[submodule "lib/CUtils"]
+	path = lib/CUtils
+	url = https://github.com/ForzaElettromotrice/CUtils

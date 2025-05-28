@@ -4,47 +4,42 @@ project(BNet C)
 set(CMAKE_C_STANDARD 17)
 #set(CMAKE_C_FLAGS "-O3")
 
+
+set(BUILD_SHARED "Build shared libraries instead of static" ON)
+set(DEBUG_FLAG "Allow debug prints" ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
-add_compile_definitions(Debug)
+if (DEBUG_FLAG)
+    add_compile_definitions(Debug)
+endif ()
+
+set(LIB_TYPE STATIC)
+if (BUILD_SHARED)
+    set(LIB_TYPE SHARED)
+endif ()
+
 add_definitions(-DSETMONITOR_SCRIPT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/setMonitor.sh")
+
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/lib/CUtils)
 
 find_library(PCAP_LIBRARY pcap REQUIRED)
 find_package(Threads REQUIRED)
 
 
-add_library(BNetShared SHARED
+add_library(BNet ${LIB_TYPE}
         src/netManager.c
         src/logger.c
         src/queue.c
         src/netUtils.c)
 
-target_link_libraries(BNetShared PUBLIC ${PCAP_LIBRARY})
-target_link_libraries(BNetShared PRIVATE Threads::Threads)
+target_link_libraries(BNet PUBLIC ${PCAP_LIBRARY} CUtils)
+target_link_libraries(BNet PRIVATE Threads::Threads)
 
-set_target_properties(BNetShared PROPERTIES
+set_target_properties(BNet PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib
-        OUTPUT_NAME BNet)
-target_include_directories(
-        BNetShared PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/BNet
-        BNetShared PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
-
-
-add_library(BNetStatic STATIC
-        src/netManager.c
-        src/logger.c
-        src/queue.c
-        src/netUtils.c)
-
-
-target_link_libraries(BNetStatic PUBLIC ${PCAP_LIBRARY})
-target_link_libraries(BNetStatic PRIVATE Threads::Threads)
-
-target_include_directories(
-        BNetStatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/BNet
-        BNetStatic PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
-
-set_target_properties(BNetStatic PROPERTIES
         ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/lib
         OUTPUT_NAME BNet)
+target_include_directories(
+        BNet PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include/BNet
+        BNet PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
 

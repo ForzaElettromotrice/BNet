@@ -4,3 +4,5 @@ bin
 build
 src/bin
 src/cmake-build-debug
+
+lib/CUtils/lib
