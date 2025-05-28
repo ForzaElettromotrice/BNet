@@ -5,4 +5,5 @@ build
 src/bin
 src/cmake-build-debug
 
-lib/CUtils/lib
+lib/CUtils/lib/CUtils
+lib/CUtils/lib/xxHash/lib
