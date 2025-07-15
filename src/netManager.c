@@ -73,7 +73,7 @@ int setMyAddr(const char *interfaceName)
 
     for (int i = 0; i < 17; i += 3)
     {
-        const u_char t[] = {text[i], text[i + 1]};
+        const char t[] = {text[i], text[i + 1]};
         context.myAddr[i / 3] = strtol(t, NULL, 16);
     }
     return EXIT_SUCCESS;
@@ -229,7 +229,7 @@ void addPacket(const PacketType_t type, const void *data, const size_t len)
     }
 }
 
-void *loop()
+void *loop(void *arg)
 {
     struct pcap_pkthdr *header;
     const u_char *packet;

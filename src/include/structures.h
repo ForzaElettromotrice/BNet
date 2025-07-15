@@ -14,12 +14,6 @@
 
 #define SLOT_TIME 9
 
-enum PacketType
-{
-    Beacon,
-    Data
-};
-
 typedef struct Context
 {
     FILE *err;

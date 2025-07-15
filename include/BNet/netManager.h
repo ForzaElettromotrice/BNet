@@ -1,8 +1,14 @@
 #pragma once
 
+#include <stdio.h>
 #include <stdbool.h>
+#include <sys/types.h>
 
-typedef enum PacketType PacketType_t;
+typedef enum PacketType
+{
+    Beacon,
+    Data
+} PacketType_t;
 
 int initPcap(FILE *err, FILE *debug);
 void cleanPcap();
