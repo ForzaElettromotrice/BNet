@@ -12,6 +12,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <pthread.h>
+#include <string.h>
+#include <errno.h>
 
 Context_t context = {};
 
